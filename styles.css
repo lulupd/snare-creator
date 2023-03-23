@@ -48,6 +48,7 @@ body {
 .osc1,
 .noise {
     display: flex;
+    text-align: center;
 }
 
 .button-container {

@@ -1,14 +1,16 @@
+const osc1FreqKnob = document.querySelector("#osc1-frequency");
 const osc1AttackKnob = document.querySelector("#osc1-attack");
 const osc1DecayKnob = document.querySelector("#osc1-decay");
 const osc1SustainKnob = document.querySelector("#osc1-sustain");
 const osc1ReleaseKnob = document.querySelector("#osc1-release");
 
+const noiseFreqKnob = document.querySelector("#noise-frequency");
 const noiseAttackKnob = document.querySelector("#noise-attack");
 const noiseDecayKnob = document.querySelector("#noise-decay");
 const noiseSustainKnob = document.querySelector("#noise-sustain");
 const noiseReleaseKnob = document.querySelector("#noise-release");
 
-const knobArray = [osc1AttackKnob, osc1DecayKnob, osc1SustainKnob, osc1ReleaseKnob, noiseAttackKnob, noiseDecayKnob, noiseSustainKnob, noiseReleaseKnob];
+const knobArray = [osc1FreqKnob, osc1AttackKnob, osc1DecayKnob, osc1SustainKnob, osc1ReleaseKnob, noiseFreqKnob, noiseAttackKnob, noiseDecayKnob, noiseSustainKnob, noiseReleaseKnob];
 
 const playButton = document.querySelector(".play");
 
@@ -24,6 +26,9 @@ const canvasCtx = canvas.getContext("2d");
 
 let osc = audioCtx.createOscillator();
 let osc1Freq = 440;
+
+const genEnv = audioCtx.createGain();
+genEnv.connect(audioCtx.destination);
 
 //noise buffer creation
 const bufferSize = audioCtx.sampleRate * +noiseDecayKnob.getAttribute("value");
@@ -55,78 +60,6 @@ function valueKnob(e, knob) {
 
     const rad = Math.atan2(deltaY, deltaX);
     let deg = rad * (180 / Math.PI);
-    
-    // if (y < h && x > w) {
-    // //1st quadrant
-
-    //     if (prevX <= x && prevY <= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal += +knob.getAttribute("step");
-    //         if (knobVal > +knob.getAttribute("max")) {
-    //             knobVal = +knob.getAttribute("max");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     } else if (prevX >= x && prevY >= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal -= +knob.getAttribute("step");
-    //         if (knobVal < +knob.getAttribute("min")) {
-    //             knobVal = +knob.getAttribute("min");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     }
-    // } else if (y < h && x < w) {
-    //     //2nd quadrant
-    //     if (prevX <= x && prevY >= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal += +knob.getAttribute("step");
-    //         if (knobVal > +knob.getAttribute("max")) {
-    //             knobVal = +knob.getAttribute("max");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     } else if (prevX >= x && prevY <= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal -= +knob.getAttribute("step");
-    //         if (knobVal < +knob.getAttribute("min")) {
-    //             knobVal = +knob.getAttribute("min");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     }
-    // } else if (y > h && x < w) {
-    //     //3rd quadrant
-    //     if (prevX >= x && prevY >= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal += +knob.getAttribute("step");
-    //         if (knobVal > +knob.getAttribute("max")) {
-    //             knobVal = +knob.getAttribute("max");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     } else if (prevX <= x && prevY >= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal -= +knob.getAttribute("step");
-    //         if (knobVal < +knob.getAttribute("min")) {
-    //             knobVal = +knob.getAttribute("min");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     }
-    // } else if (y > h && x > w) {
-    //     //4th quadrant
-    //     if (prevX >= x && prevY <= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal += +knob.getAttribute("step");
-    //         if (knobVal > +knob.getAttribute("max")) {
-    //             knobVal = +knob.getAttribute("max");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     } else if (prevX <= x && prevY >= y) {
-    //         let knobVal = +knob.getAttribute("value");
-    //         knobVal -= +knob.getAttribute("step");
-    //         if (knobVal < +knob.getAttribute("min")) {
-    //             knobVal = +knob.getAttribute("min");
-    //         }
-    //         knob.setAttribute("value", knobVal);
-    //     }
-    // }
-
 
     prevX = x;
     prevY = y;
@@ -136,6 +69,8 @@ function valueKnob(e, knob) {
         let knobRange = Math.abs(+knob.getAttribute("min")) + Math.abs(+knob.getAttribute("max"));
         let knobVal = (knobRange * (deg/180)) + +knob.getAttribute("min");
         knob.setAttribute("value", knobVal);
+        let prevSibling = knob.previousElementSibling;
+        prevSibling.innerHTML = knobVal.toFixed(2);
     }
 
     return deg;
@@ -203,7 +138,7 @@ function createWaveform(source) {
 
 function playOsc1(time) {
     osc = audioCtx.createOscillator();
-    osc.frequency.value = osc1Freq;
+    osc.frequency.value = +osc1FreqKnob.getAttribute("value");
 
     const osc1Env = audioCtx.createGain();
 
@@ -214,12 +149,13 @@ function playOsc1(time) {
 
     osc1Env.gain.setValueAtTime(0, time);
     osc1Env.gain.linearRampToValueAtTime(1, time + attackTime);
-    osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + decayTime + releaseTime);
+    osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + decayTime);
+    osc1Env.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
 
-    osc.connect(osc1Env).connect(audioCtx.destination);
+    osc.connect(osc1Env).connect(genEnv);
 
-    createWaveform(osc1Env);
+    createWaveform(genEnv);
 
     osc.start(time);
 
@@ -245,10 +181,11 @@ function playNoise(time) {
 
     noiseEnv.gain.setValueAtTime(0, time);
     noiseEnv.gain.linearRampToValueAtTime(1, time + attackTime);
-    noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + decayTime + releaseTime);
+    noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + decayTime);
+    noiseEnv.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
 
-    noise.connect(noiseEnv).connect(audioCtx.destination);
+    noise.connect(noiseEnv).connect(genEnv);
     noise.start()
     noise.stop(time + decayTime + releaseTime);
 }
