@@ -13,62 +13,67 @@
     <body>
         <div class="card-container">
             <div class="osc-card">
-                <div>
-                    <div class="waveform"></div>
+                <div class="top">
+                    <canvas class="visualizer" width="420px" height="150px"></canvas>
                     <div class="button-container">
                         <button class="play" playing="false">Play</button>
                         <button>Button</button>
                         <button>Button</button>
                     </div>
                 </div>
-                <div class="bottom">
-                    <div class="knob-container">
-                        <div class="knob" id="attack" min="0" max="1" value="0.2" step="0.1">
-                            <div class="knob-marker"></div>
+                <div class="knobs">
+                    <div class="osc1">
+                        <div class="knob-container">
+                            <div class="knob" id="osc1-attack" min="0" max="1" value="0" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Attack
                         </div>
-                        Attack
+                        <div class="knob-container">
+                            <div class="knob" id="osc1-decay" min="0" max="2" value="0.1" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Decay
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="osc1-sustain" min="0" max="1" value="0" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Sustain
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="osc1-release" min="0" max="2" value="0" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Release
+                        </div>
                     </div>
-                    <div class="knob-container">
-                        <div class="knob" id="decay">
-                            <div class="knob-marker"></div>
+                    
+                    <div class="noise">
+                        <div class="knob-container">
+                            <div class="knob" id="noise-attack" min="0" max="1" value="0" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Attack
                         </div>
-                        Decay
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob" id="sustain">
-                            <div class="knob-marker"></div>
+                        <div class="knob-container">
+                            <div class="knob" id="noise-decay" min="0" max="2" value="0.1" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Decay
                         </div>
-                        Sustain
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob" id="release">
-                            <div class="knob-marker"></div>
+                        <div class="knob-container">
+                            <div class="knob" id="noise-sustain" min="0" max="1" value="0" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Sustain
                         </div>
-                        Release
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob">
-                            <div class="knob-marker"></div>
+                        <div class="knob-container">
+                            <div class="knob" id="noise-release" min="0" max="2" value="0" step="0.1">
+                                <div class="knob-marker"></div>
+                            </div>
+                            Release
                         </div>
-                        Knob description
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob">
-                            <div class="knob-marker"></div>
-                        </div>
-                        Knob description
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob">
-                            <div class="knob-marker"></div>
-                        </div>
-                        Knob description
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob">
-                            <div class="knob-marker"></div>
-                        </div>
-                        Knob description
                     </div>
                 </div>
             </div>
