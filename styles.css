@@ -1,0 +1,78 @@
+html {
+    font-family: "Sora", sans-serif;
+    height: 100%;
+}
+body {
+    height: inherit;
+}
+.card-container {
+    height: inherit;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.osc-card {
+    box-sizing: border-box;
+    box-shadow: 0px 0px 25px;
+    width: 500px;
+    height: 750px;
+    background-color: #e1f0ea;
+    flex: 0 0 auto;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 25px;
+}
+
+.waveform {
+    background-color: #45433e;
+    width: 100%;
+    height: 150px;
+}
+
+.osc-card .bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 24px 0px;
+}
+
+.button-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    margin: 12px 0px;
+}
+
+.button-container button {
+    height: 50px;
+    width: 50px;
+    flex: 0 0 auto;
+}
+.knob-container {
+    display: flex;
+    flex-direction: column;
+    width: 75px;
+    margin: 10px;
+    align-items: center;
+    text-align: center;
+    font-size: small;
+}
+
+.knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50px;
+    border-style: solid;
+    box-shadow: inset 0px 0px 5px;
+}
+
+.knob-marker {
+    width: 5%;
+    height: 10px;
+    position: relative;
+    background-color: #45433e;
+    left: 47.5%;
+}
