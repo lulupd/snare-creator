@@ -6,9 +6,9 @@ let prevX = 0;
 let prevY = 0;
 
 
-let context = new AudioContext();
+let audioCtx = new AudioContext();
 
-let osc = context.createOscillator();
+let osc = audioCtx.createOscillator();
 let osc1Freq = 440;
 
 
@@ -26,89 +26,98 @@ function valueKnob(e, knob) {
     const deltaY = h - y;
 
     const rad = Math.atan2(deltaY, deltaX);
-    const deg = rad * (180 / Math.PI);
+    let deg = rad * (180 / Math.PI);
     
-    if (y < h && x > w) {
-    //1st quadrant
+    // if (y < h && x > w) {
+    // //1st quadrant
 
-        if (prevX <= x && prevY <= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal += +knob.getAttribute("step");
-            if (knobVal > +knob.getAttribute("max")) {
-                knobVal = +knob.getAttribute("max");
-            }
-            knob.setAttribute("value", knobVal);
-        } else if (prevX >= x && prevY >= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal -= +knob.getAttribute("step");
-            if (knobVal < +knob.getAttribute("min")) {
-                knobVal = +knob.getAttribute("min");
-            }
-            knob.setAttribute("value", knobVal);
-        }
-    } else if (y < h && x < w) {
-        //2nd quadrant
-        if (prevX <= x && prevY >= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal += +knob.getAttribute("step");
-            if (knobVal > +knob.getAttribute("max")) {
-                knobVal = +knob.getAttribute("max");
-            }
-            knob.setAttribute("value", knobVal);
-        } else if (prevX >= x && prevY <= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal -= +knob.getAttribute("step");
-            if (knobVal < +knob.getAttribute("min")) {
-                knobVal = +knob.getAttribute("min");
-            }
-            knob.setAttribute("value", knobVal);
-        }
-    } else if (y > h && x < w) {
-        //3rd quadrant
-        if (prevX >= x && prevY >= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal += +knob.getAttribute("step");
-            if (knobVal > +knob.getAttribute("max")) {
-                knobVal = +knob.getAttribute("max");
-            }
-            knob.setAttribute("value", knobVal);
-        } else if (prevX <= x && prevY >= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal -= +knob.getAttribute("step");
-            if (knobVal < +knob.getAttribute("min")) {
-                knobVal = +knob.getAttribute("min");
-            }
-            knob.setAttribute("value", knobVal);
-        }
-    } else if (y > h && x > w) {
-        //4th quadrant
-        if (prevX >= x && prevY <= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal += +knob.getAttribute("step");
-            if (knobVal > +knob.getAttribute("max")) {
-                knobVal = +knob.getAttribute("max");
-            }
-            knob.setAttribute("value", knobVal);
-        } else if (prevX <= x && prevY >= y) {
-            let knobVal = +knob.getAttribute("value");
-            knobVal -= +knob.getAttribute("step");
-            if (knobVal < +knob.getAttribute("min")) {
-                knobVal = +knob.getAttribute("min");
-            }
-            knob.setAttribute("value", knobVal);
-        }
-    }
+    //     if (prevX <= x && prevY <= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal += +knob.getAttribute("step");
+    //         if (knobVal > +knob.getAttribute("max")) {
+    //             knobVal = +knob.getAttribute("max");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     } else if (prevX >= x && prevY >= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal -= +knob.getAttribute("step");
+    //         if (knobVal < +knob.getAttribute("min")) {
+    //             knobVal = +knob.getAttribute("min");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     }
+    // } else if (y < h && x < w) {
+    //     //2nd quadrant
+    //     if (prevX <= x && prevY >= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal += +knob.getAttribute("step");
+    //         if (knobVal > +knob.getAttribute("max")) {
+    //             knobVal = +knob.getAttribute("max");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     } else if (prevX >= x && prevY <= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal -= +knob.getAttribute("step");
+    //         if (knobVal < +knob.getAttribute("min")) {
+    //             knobVal = +knob.getAttribute("min");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     }
+    // } else if (y > h && x < w) {
+    //     //3rd quadrant
+    //     if (prevX >= x && prevY >= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal += +knob.getAttribute("step");
+    //         if (knobVal > +knob.getAttribute("max")) {
+    //             knobVal = +knob.getAttribute("max");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     } else if (prevX <= x && prevY >= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal -= +knob.getAttribute("step");
+    //         if (knobVal < +knob.getAttribute("min")) {
+    //             knobVal = +knob.getAttribute("min");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     }
+    // } else if (y > h && x > w) {
+    //     //4th quadrant
+    //     if (prevX >= x && prevY <= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal += +knob.getAttribute("step");
+    //         if (knobVal > +knob.getAttribute("max")) {
+    //             knobVal = +knob.getAttribute("max");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     } else if (prevX <= x && prevY >= y) {
+    //         let knobVal = +knob.getAttribute("value");
+    //         knobVal -= +knob.getAttribute("step");
+    //         if (knobVal < +knob.getAttribute("min")) {
+    //             knobVal = +knob.getAttribute("min");
+    //         }
+    //         knob.setAttribute("value", knobVal);
+    //     }
+    // }
+
+
     prevX = x;
     prevY = y;
-
+    // deg = (deg + 360) % 360;
+    deg = Math.floor(deg);
+    if (deg >= 0) {
+        let knobRange = Math.abs(+knob.getAttribute("min")) + Math.abs(+knob.getAttribute("max"));
+        let knobVal = (knobRange * (deg/180)) + +knob.getAttribute("min");
+        knob.setAttribute("value", knobVal);
+    }
     console.log(knob.getAttribute("value"));
     return deg;
 }
 
 function rotate(e, knob) {
     const result = Math.floor(valueKnob(e, knob) - 90);
-
-    knob.style.transform = `rotate(${result}deg)`;
+    if (result >= -90) {
+        knob.style.transform = `rotate(${result}deg)`;
+    }
 }
 
 function startRotation(knob) {
@@ -121,10 +130,10 @@ function startRotation(knob) {
 }
 
 function playOsc1(time) {
-    osc = context.createOscillator();
+    osc = audioCtx.createOscillator();
     osc.frequency.value = osc1Freq;
 
-    let osc1Env = context.createGain();
+    let osc1Env = audioCtx.createGain();
 
     let attackTime = +attackKnob.getAttribute("value");
 
@@ -132,17 +141,17 @@ function playOsc1(time) {
     osc1Env.gain.linearRampToValueAtTime(1, time + attackTime);
 
 
-    osc.connect(osc1Env).connect(context.destination);
+    osc.connect(osc1Env).connect(audioCtx.destination);
     osc.start(time);
 }
 
 
 playButton.onclick = () => {
     if (playButton.getAttribute("playing") === "false") {
-        if (context.state === "suspended") {
-            context.resume();
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
         }
-        let currentTime = context.currentTime;
+        let currentTime = audioCtx.currentTime;
         playOsc1(currentTime);
         playButton.setAttribute("playing", "true");
         playButton.innerHTML = "Stop";
