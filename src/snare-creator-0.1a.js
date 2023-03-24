@@ -1,16 +1,24 @@
+const osc1VolKnob = document.querySelector("#osc1-volume");
 const osc1FreqKnob = document.querySelector("#osc1-frequency");
+const osc1DistKnob = document.querySelector("#osc1-distortion");
+const osc1FMKnob = document.querySelector("#osc1-fm");
+
 const osc1AttackKnob = document.querySelector("#osc1-attack");
 const osc1DecayKnob = document.querySelector("#osc1-decay");
 const osc1SustainKnob = document.querySelector("#osc1-sustain");
 const osc1ReleaseKnob = document.querySelector("#osc1-release");
 
-const noiseFreqKnob = document.querySelector("#noise-frequency");
+const noiseVolKnob = document.querySelector("#noise-volume");
+const noiseHighPassKnob = document.querySelector("#noise-high-pass");
+const noiseDistKnob = document.querySelector("#noise-distortion");
+const noiseLowPassKnob = document.querySelector("#noise-low-pass");
+
 const noiseAttackKnob = document.querySelector("#noise-attack");
 const noiseDecayKnob = document.querySelector("#noise-decay");
 const noiseSustainKnob = document.querySelector("#noise-sustain");
 const noiseReleaseKnob = document.querySelector("#noise-release");
 
-const knobArray = [osc1FreqKnob, osc1AttackKnob, osc1DecayKnob, osc1SustainKnob, osc1ReleaseKnob, noiseFreqKnob, noiseAttackKnob, noiseDecayKnob, noiseSustainKnob, noiseReleaseKnob];
+const knobArray = [osc1VolKnob, osc1FreqKnob, osc1DistKnob, osc1FMKnob, osc1AttackKnob, osc1DecayKnob, osc1SustainKnob, osc1ReleaseKnob, noiseVolKnob, noiseHighPassKnob, noiseDistKnob, noiseLowPassKnob, noiseAttackKnob, noiseDecayKnob, noiseSustainKnob, noiseReleaseKnob];
 
 const valueInputs = document.getElementsByClassName("knob-value");
 
@@ -27,28 +35,27 @@ const audioCtx = new AudioContext();
 const canvasCtx = canvas.getContext("2d");
 
 let osc = audioCtx.createOscillator();
-let osc1Freq = 440;
 
 const genEnv = audioCtx.createGain();
 genEnv.connect(audioCtx.destination);
 
 //noise buffer creation
-const bufferSize = audioCtx.sampleRate * +noiseDecayKnob.getAttribute("value");
+let bufferSize = audioCtx.sampleRate * (+noiseAttackKnob.getAttribute("value") + +noiseDecayKnob.getAttribute("value") + +noiseReleaseKnob.getAttribute("value"));
 const noiseBuffer = new AudioBuffer({
     length: bufferSize,
     sampleRate: audioCtx.sampleRate,
 });
 
-const data = noiseBuffer.getChannelData(0);
+let noiseData = noiseBuffer.getChannelData(0);
 for (let i = 0; i < bufferSize; i++) {
-  data[i] = Math.random() - 0.5;
+    noiseData[i] = Math.random() - 0.5;
 }
 let noise = new AudioBufferSourceNode(audioCtx, {
     buffer: noiseBuffer,
 });
 
 //knob functionality
-function valueKnob(e, knob) {
+function turnKnob(e, knob) {
     //Half of the knob marker width and height
     const w = knob.clientWidth / 2;
     const h = knob.clientHeight / 2;
@@ -77,6 +84,11 @@ function valueKnob(e, knob) {
             valueVisualizer.value = `${knobVal.toFixed(2)} Hz`;
         } else if (valueVisualizer.value.endsWith("s")) {
             valueVisualizer.value = `${knobVal.toFixed(2)} s`;
+        } else if (valueVisualizer.value.endsWith("dB")) {
+            knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            valueVisualizer.value = `${knobVal.toFixed(2)} dB`;
+        } else if (valueVisualizer.value.endsWith("%")) {
+            valueVisualizer.value = `${knobVal.toFixed(2)}%`;
         }
     }
 
@@ -84,7 +96,7 @@ function valueKnob(e, knob) {
 }
 
 function rotate(e, knob) {
-    const result = Math.floor(valueKnob(e, knob) - 90);
+    const result = Math.floor(turnKnob(e, knob) - 90);
     if (result >= -90) {
         knob.style.transform = `rotate(${result}deg)`;
     }
@@ -97,6 +109,25 @@ function startRotation(knob) {
     window.addEventListener("mouseup", () => {
         window.removeEventListener("mousemove", rotateKnob);
     });
+}
+
+function createDistortionCurve(amount) {
+    let k = amount;
+    let n_samples = audioCtx.sampleRate;
+    let curve = new Float32Array(n_samples);
+    let deg = Math.PI/180
+    let x;
+
+    for (let i = 0; i < n_samples; i++) {
+        x = (i * 2 / n_samples) - 1;
+
+        //Hard Clipping
+        // curve[i] = (3 + k) * Math.atan(Math.sinh(x * 0.25) * 5) / (Math.PI + (k * Math.abs(x)));
+
+        //Soft Clipping
+        curve[i] = (1 + k) * x / (1 + k * Math.abs(x))
+    }
+    return curve;
 }
 
 function createWaveform(source) {
@@ -144,26 +175,49 @@ function createWaveform(source) {
 }
 
 function playOsc1(time) {
-    osc = audioCtx.createOscillator();
-    osc.frequency.value = +osc1FreqKnob.getAttribute("value");
-
-    const osc1Env = audioCtx.createGain();
+    const osc1Gain = +osc1VolKnob.getAttribute("value");
+    const osc1Freq = +osc1FreqKnob.getAttribute("value");
+    const distAmount = +osc1DistKnob.getAttribute("value");
+    const fmAmount = +osc1FMKnob.getAttribute("value");
 
     const attackTime = +osc1AttackKnob.getAttribute("value");
     const decayTime = +osc1DecayKnob.getAttribute("value");
     const sustainVolume = +osc1SustainKnob.getAttribute("value");
     const releaseTime = +osc1ReleaseKnob.getAttribute("value");
 
+    osc = audioCtx.createOscillator();
+    osc.frequency.value = osc1Freq;
+
+    let modulator = audioCtx.createOscillator();
+    modulator.frequency.value = 10000;
+
+    const osc1Env = audioCtx.createGain();
+    const modulatorGain = audioCtx.createGain();
+ 
+    modulatorGain.gain.value = fmAmount;
+
+    const distortionNode = audioCtx.createWaveShaper();
+
+    distortionNode.curve = createDistortionCurve(distAmount);
+
     osc1Env.gain.setValueAtTime(0, time);
-    osc1Env.gain.linearRampToValueAtTime(1, time + attackTime);
-    osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
+    osc1Env.gain.linearRampToValueAtTime(osc1Gain, time + attackTime);
+    if (osc1Gain > 0) {
+        osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
+    }
     osc1Env.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
+    
 
-    osc.connect(osc1Env).connect(genEnv);
+    modulator.connect(modulatorGain);
+    modulatorGain.connect(osc.frequency);
+    
+    osc.connect(distortionNode);
+    distortionNode.connect(osc1Env).connect(genEnv);
 
     createWaveform(genEnv);
 
+    modulator.start(time);
     osc.start(time);
 
     osc.addEventListener("ended", () => {
@@ -175,24 +229,59 @@ function playOsc1(time) {
 }
 
 function playNoise(time) {
-    noise = new AudioBufferSourceNode(audioCtx, {
-        buffer: noiseBuffer,
-    });
-
-    const noiseEnv = audioCtx.createGain();
+    const noiseGain = +noiseVolKnob.getAttribute("value");
+    const highpassFreq = +noiseHighPassKnob.getAttribute("value");
+    const distAmount = +noiseDistKnob.getAttribute("value");
+    const lowpassFreq = +noiseLowPassKnob.getAttribute("value");
 
     const attackTime = +noiseAttackKnob.getAttribute("value");
     const decayTime = +noiseDecayKnob.getAttribute("value");
     const sustainVolume = +noiseSustainKnob.getAttribute("value");
     const releaseTime = +noiseReleaseKnob.getAttribute("value");
 
+    bufferSize = audioCtx.sampleRate * (attackTime + decayTime + releaseTime);
+    noiseBuffer.length = bufferSize;
+
+    noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        noiseData[i] = Math.random() - 0.5;
+    }
+
+    noise = new AudioBufferSourceNode(audioCtx, {
+        buffer: noiseBuffer,
+    });
+
+    const noiseEnv = audioCtx.createGain();
+
+    const highpass = new BiquadFilterNode(audioCtx, {
+        type: "highpass",
+        
+    });
+
+    const lowpass = new BiquadFilterNode(audioCtx, {
+        type: "lowpass",
+        
+    });
+    
+    highpass.frequency.value = highpassFreq;
+    lowpass.frequency.value = lowpassFreq;
+
+    const distortionNode = audioCtx.createWaveShaper();
+
+    distortionNode.curve = createDistortionCurve(distAmount);
+
     noiseEnv.gain.setValueAtTime(0, time);
-    noiseEnv.gain.linearRampToValueAtTime(1, time + attackTime);
-    noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
+    noiseEnv.gain.linearRampToValueAtTime(noiseGain, time + attackTime);
+    if (noiseGain > 0) {
+        noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
+    }
     noiseEnv.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
-
-    noise.connect(noiseEnv).connect(genEnv);
+  
+    noise.connect(highpass);
+    highpass.connect(distortionNode);
+    distortionNode.connect(lowpass)
+    lowpass.connect(noiseEnv).connect(genEnv);
     noise.start()
     noise.stop(time + attackTime + decayTime + releaseTime);
 }
@@ -210,23 +299,45 @@ function updateKnobs() {
 }
 function handleInputChange(e) {
     knob = e.target.nextElementSibling;
-    if (e.target.value.endsWith("Hz")) {
-        e.target.value = e.target.value.slice(0, -2);
-        e.target.value.trimEnd();
-    } else if (e.target.value.endsWith("s")) {
-        e.target.value = e.target.value.slice(0, -1);
-        e.target.value.trimEnd();
+    let newValue = e.target.value;
+    if (newValue.endsWith("Hz")) {
+        newValue = newValue.slice(0, -2);
+        newValue.trimEnd();
+    } else if (newValue.endsWith("s") || newValue.endsWith("%")) {
+        newValue = newValue.slice(0, -1);
+        newValue.trimEnd();
+    } else if (newValue.endsWith("dB")) {
+        newValue = newValue.slice(0, -2);
+        newValue.trimEnd();
+        newValue = Math.pow(10, (+newValue / 20));
     }
-    knob.setAttribute("value", +e.target.value);
-    let knobVal = knob.getAttribute("value");
 
-    if (knob.id.includes("frequency")) {
-        e.target.value = `${knobVal} Hz`
-    } else {
-        e.target.value = `${knobVal} s`
+    if (+newValue < +knob.getAttribute("min")) {
+        newValue = +knob.getAttribute("min");
+    } else if (+newValue > +knob.getAttribute("max")) {
+        newValue = +knob.getAttribute("max");
+    }
+
+    if (!isNaN(newValue) && !isNaN(parseInt(newValue))) {
+        knob.setAttribute("value", +newValue);
+
+        let knobVal = +knob.getAttribute("value");
+    
+        if (e.target.value.endsWith("Hz")) {
+            e.target.value = `${knobVal} Hz`
+        } else if (e.target.value.endsWith("dB")) {
+            knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            e.target.value = `${knobVal.toFixed(2)} dB`
+        } else if (e.target.value.endsWith("%")) {
+            e.target.value = `${knobVal}%`
+        } else {
+            e.target.value = `${knobVal} s`
+        }
     }
     updateKnobs();
 }
+
+
 
 playButton.onclick = () => {
     if (playButton.getAttribute("playing") === "false") {
@@ -256,6 +367,7 @@ for (let j = 0; j < valueInputs.length; j++) {
     valueInputs[j].addEventListener("keyup", (e) => {
         if (e.key === "Enter") {
             handleInputChange(e);
+            valueInputs[j].blur();
         }
     });
 }

@@ -2,9 +2,13 @@ html {
     font-family: "Sora", sans-serif;
     height: 100%;
 }
+
 body {
     height: inherit;
+    user-select: none;
+    -moz-user-select: none;
 }
+
 .card-container {
     height: inherit;
     display: flex;
@@ -15,8 +19,8 @@ body {
 .osc-card {
     box-sizing: border-box;
     box-shadow: 0px 0px 25px;
-    width: 500px;
-    height: 750px;
+    width: 600px;
+    height: 900px;
     background-color: #e1f0ea;
     flex: 0 0 auto;
     padding: 32px;
@@ -45,10 +49,10 @@ body {
     margin: 24px 0px;
 }
 
-.osc1,
-.noise {
+.knob-row {
     display: flex;
     text-align: center;
+    justify-content: center;
 }
 
 .button-container {
@@ -63,6 +67,13 @@ body {
     width: 50px;
     flex: 0 0 auto;
 }
+
+/* .knobs::selection,
+.knob-container::selection {
+    background-color: transparent;
+    color: black;
+} */
+
 .knob-container {
     display: flex;
     flex-direction: column;
