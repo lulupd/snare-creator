@@ -12,6 +12,8 @@ const noiseReleaseKnob = document.querySelector("#noise-release");
 
 const knobArray = [osc1FreqKnob, osc1AttackKnob, osc1DecayKnob, osc1SustainKnob, osc1ReleaseKnob, noiseFreqKnob, noiseAttackKnob, noiseDecayKnob, noiseSustainKnob, noiseReleaseKnob];
 
+const valueInputs = document.getElementsByClassName("knob-value");
+
 const playButton = document.querySelector(".play");
 
 const canvas = document.querySelector(".visualizer");
@@ -69,8 +71,13 @@ function valueKnob(e, knob) {
         let knobRange = Math.abs(+knob.getAttribute("min")) + Math.abs(+knob.getAttribute("max"));
         let knobVal = (knobRange * (deg/180)) + +knob.getAttribute("min");
         knob.setAttribute("value", knobVal);
-        let prevSibling = knob.previousElementSibling;
-        prevSibling.innerHTML = knobVal.toFixed(2);
+        let valueVisualizer = knob.previousElementSibling;
+        
+        if (valueVisualizer.value.endsWith("Hz")) {
+            valueVisualizer.value = `${knobVal.toFixed(2)} Hz`;
+        } else if (valueVisualizer.value.endsWith("s")) {
+            valueVisualizer.value = `${knobVal.toFixed(2)} s`;
+        }
     }
 
     return deg;
@@ -149,7 +156,7 @@ function playOsc1(time) {
 
     osc1Env.gain.setValueAtTime(0, time);
     osc1Env.gain.linearRampToValueAtTime(1, time + attackTime);
-    osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + decayTime);
+    osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
     osc1Env.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
 
@@ -164,7 +171,7 @@ function playOsc1(time) {
         playButton.innerHTML = "Play";
     }); 
 
-    osc.stop(time + decayTime + releaseTime);
+    osc.stop(time + attackTime + decayTime + releaseTime);
 }
 
 function playNoise(time) {
@@ -181,13 +188,44 @@ function playNoise(time) {
 
     noiseEnv.gain.setValueAtTime(0, time);
     noiseEnv.gain.linearRampToValueAtTime(1, time + attackTime);
-    noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + decayTime);
+    noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
     noiseEnv.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
 
     noise.connect(noiseEnv).connect(genEnv);
     noise.start()
-    noise.stop(time + decayTime + releaseTime);
+    noise.stop(time + attackTime + decayTime + releaseTime);
+}
+
+function updateKnobs() {
+    for (let i = 0; i < knobArray.length; i++) {    
+        const initialValue = +knobArray[i].getAttribute("value")
+        const knobRange = Math.abs(+knobArray[i].getAttribute("min")) + Math.abs(+knobArray[i].getAttribute("max"));
+        if (initialValue !== (knobRange / 2)) {
+            const deg = (initialValue / knobRange) * 180;
+            const result = Math.floor(deg - 90);
+            knobArray[i].style.transform = `rotate(${result}deg)`;
+        }
+    }
+}
+function handleInputChange(e) {
+    knob = e.target.nextElementSibling;
+    if (e.target.value.endsWith("Hz")) {
+        e.target.value = e.target.value.slice(0, -2);
+        e.target.value.trimEnd();
+    } else if (e.target.value.endsWith("s")) {
+        e.target.value = e.target.value.slice(0, -1);
+        e.target.value.trimEnd();
+    }
+    knob.setAttribute("value", +e.target.value);
+    let knobVal = knob.getAttribute("value");
+
+    if (knob.id.includes("frequency")) {
+        e.target.value = `${knobVal} Hz`
+    } else {
+        e.target.value = `${knobVal} s`
+    }
+    updateKnobs();
 }
 
 playButton.onclick = () => {
@@ -209,12 +247,15 @@ playButton.onclick = () => {
 
 for (let i = 0; i < knobArray.length; i++) {
     knobArray[i].addEventListener("mousedown", () => {startRotation(knobArray[i])});
+}
 
-    const initialValue = +knobArray[i].getAttribute("value")
-    const knobRange = Math.abs(+knobArray[i].getAttribute("min")) + Math.abs(+knobArray[i].getAttribute("max"));
-    if (initialValue !== (knobRange / 2)) {
-        const deg = (initialValue / knobRange) * 180;
-        const result = Math.floor(deg - 90);
-        knobArray[i].style.transform = `rotate(${result}deg)`;
-    }
+updateKnobs();
+
+for (let j = 0; j < valueInputs.length; j++) {
+    valueInputs[j].addEventListener("change", handleInputChange);
+    valueInputs[j].addEventListener("keyup", (e) => {
+        if (e.key === "Enter") {
+            handleInputChange(e);
+        }
+    });
 }

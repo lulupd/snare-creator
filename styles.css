@@ -67,10 +67,12 @@ body {
     display: flex;
     flex-direction: column;
     width: 75px;
+    height: 100px;
     margin: 10px;
     align-items: center;
     text-align: center;
     font-size: small;
+    flex: 0 1 auto;
 }
 
 .knob {
@@ -87,4 +89,10 @@ body {
     position: relative;
     background-color: #45433e;
     left: 47.5%;
+}
+
+.knob-value {
+    font-size: 80%;
+    width: 75px;
+    text-align: center;
 }
