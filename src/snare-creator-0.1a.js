@@ -18,7 +18,9 @@ const noiseDecayKnob = document.querySelector("#noise-decay");
 const noiseSustainKnob = document.querySelector("#noise-sustain");
 const noiseReleaseKnob = document.querySelector("#noise-release");
 
-const knobArray = [osc1VolKnob, osc1FreqKnob, osc1DistKnob, osc1FMKnob, osc1AttackKnob, osc1DecayKnob, osc1SustainKnob, osc1ReleaseKnob, noiseVolKnob, noiseHighPassKnob, noiseDistKnob, noiseLowPassKnob, noiseAttackKnob, noiseDecayKnob, noiseSustainKnob, noiseReleaseKnob];
+const knobArray = document.getElementsByClassName("knob");
+
+const knobMarkers = document.getElementsByClassName("knob-marker");
 
 const valueInputs = document.getElementsByClassName("knob-value");
 
@@ -75,8 +77,8 @@ function turnKnob(e, knob) {
 
     deg = Math.floor(deg);
     if (deg >= 0) {
-        let knobRange = Math.abs(+knob.getAttribute("min")) + Math.abs(+knob.getAttribute("max"));
-        let knobVal = (knobRange * (deg/180)) + +knob.getAttribute("min");
+        let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
+        let knobVal = (knobRange * (deg/180));
         knob.setAttribute("value", knobVal);
         let valueVisualizer = knob.previousElementSibling;
         
@@ -98,6 +100,54 @@ function turnKnob(e, knob) {
     return deg;
 }
 
+function slideTurnKnob(e, knob) {
+
+    //Mouse coordinates. 
+    const x = e.clientX - knob.offsetLeft;
+    const y = e.clientY - knob.offsetTop;
+
+    let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
+    let knobVal = +knob.getAttribute("value");
+    let deg = (knobVal / knobRange) * 180;
+    console.log(deg);
+    
+    if (Math.abs(x - prevX) > Math.abs(y - prevY)) {
+        deg += x - prevX;
+    } else {
+        deg -= y - prevY;
+    }
+
+    if (deg > 180) {
+        deg = 180
+    } else if (deg < 0) {
+        deg = 0;
+    }
+
+    prevX = x;
+    prevY = y;
+
+    deg = Math.floor(deg);
+    knobVal = (knobRange * (deg/180));
+    knob.setAttribute("value", knobVal);
+    let valueVisualizer = knob.previousElementSibling;
+    
+    if (valueVisualizer.value.endsWith("Hz")) {
+        valueVisualizer.value = `${knobVal.toFixed(2)} Hz`;
+    } else if (valueVisualizer.value.endsWith("s")) {
+        valueVisualizer.value = `${knobVal.toFixed(2)} s`;
+    } else if (valueVisualizer.value.endsWith("dB")) {
+        knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+        valueVisualizer.value = `${knobVal.toFixed(2)} dB`;
+    } else if (valueVisualizer.value.endsWith("%")) {
+        if (knob.id.includes("sustain")) {
+            knobVal *= 100;
+        }
+        valueVisualizer.value = `${knobVal.toFixed(2)}%`;
+    }
+
+    return deg;
+}
+
 function rotate(e, knob) {
     const result = Math.floor(turnKnob(e, knob) - 90);
     if (result >= -90) {
@@ -105,12 +155,30 @@ function rotate(e, knob) {
     }
 }
 
+function slide(e, knob) {
+    const result = Math.floor(slideTurnKnob(e, knob) - 90);
+    if (result >= -90) {
+        knob.style.transform = `rotate(${result}deg)`;
+    }
+}
+
 function startRotation(knob) {
     let rotateKnob = (e) => {rotate(e, knob)};
+    
     window.addEventListener("mousemove", rotateKnob);
     
     window.addEventListener("mouseup", () => {
         window.removeEventListener("mousemove", rotateKnob);
+    });
+}
+
+function startSlideRotation(knob) {
+    let slideKnob = (e) => {slide(e, knob)};
+
+    window.addEventListener("mousemove", slideKnob);
+    
+    window.addEventListener("mouseup", () => {
+        window.removeEventListener("mousemove", slideKnob);
     });
 }
 
@@ -289,17 +357,18 @@ function playNoise(time) {
     noise.stop(time + attackTime + decayTime + releaseTime);
 }
 
-function updateKnobs() {
-    for (let i = 0; i < knobArray.length; i++) {    
-        const initialValue = +knobArray[i].getAttribute("value")
-        const knobRange = Math.abs(+knobArray[i].getAttribute("min")) + Math.abs(+knobArray[i].getAttribute("max"));
+function updateKnobs(kArray) {
+    for (let i = 0; i < kArray.length; i++) {    
+        const initialValue = +kArray[i].getAttribute("value")
+        const knobRange = +kArray[i].getAttribute("max") - +kArray[i].getAttribute("min");
         if (initialValue !== (knobRange / 2)) {
             const deg = (initialValue / knobRange) * 180;
             const result = Math.floor(deg - 90);
-            knobArray[i].style.transform = `rotate(${result}deg)`;
+            kArray[i].style.transform = `rotate(${result}deg)`;
         }
     }
 }
+
 function handleInputChange(e) {
     knob = e.target.nextElementSibling;
     let newValue = e.target.value;
@@ -367,10 +436,15 @@ playButton.onclick = () => {
 };
 
 for (let i = 0; i < knobArray.length; i++) {
-    knobArray[i].addEventListener("mousedown", () => {startRotation(knobArray[i])});
+    knobArray[i].addEventListener("mousedown", () => {startSlideRotation(knobArray[i])});
 }
 
-updateKnobs();
+for (let i = 0; i < knobMarkers.length; i++) {
+    const knob = knobMarkers[i].parentElement;
+    knobMarkers[i].addEventListener("mousedown", () => {startRotation(knob)});
+}
+
+updateKnobs(knobArray);
 
 for (let j = 0; j < valueInputs.length; j++) {
     valueInputs[j].addEventListener("change", handleInputChange);
