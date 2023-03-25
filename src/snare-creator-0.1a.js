@@ -106,15 +106,16 @@ function slideTurnKnob(e, knob) {
     const x = e.clientX - knob.offsetLeft;
     const y = e.clientY - knob.offsetTop;
 
-    let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
-    let knobVal = +knob.getAttribute("value");
-    let deg = (knobVal / knobRange) * 180;
-    console.log(deg);
+    let deg = +knob.getAttribute("angle");
     
     if (Math.abs(x - prevX) > Math.abs(y - prevY)) {
-        deg += x - prevX;
-    } else {
-        deg -= y - prevY;
+        if (Math.abs(x - prevX) === 1) {
+            deg += x - prevX;
+        }
+    } else if (Math.abs(x - prevX) < Math.abs(y - prevY)){
+        if (Math.abs(y - prevY) === 1) {
+            deg -= y - prevY;
+        } 
     }
 
     if (deg > 180) {
@@ -122,13 +123,15 @@ function slideTurnKnob(e, knob) {
     } else if (deg < 0) {
         deg = 0;
     }
+    console.log(x - prevX);
 
     prevX = x;
     prevY = y;
 
-    deg = Math.floor(deg);
-    knobVal = (knobRange * (deg/180));
+    let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
+    let knobVal = (knobRange * (deg/180)) + +knob.getAttribute("min");
     knob.setAttribute("value", knobVal);
+    knob.setAttribute("angle", deg);
     let valueVisualizer = knob.previousElementSibling;
     
     if (valueVisualizer.value.endsWith("Hz")) {
@@ -365,6 +368,7 @@ function updateKnobs(kArray) {
             const deg = (initialValue / knobRange) * 180;
             const result = Math.floor(deg - 90);
             kArray[i].style.transform = `rotate(${result}deg)`;
+            kArray[i].setAttribute("angle", deg);
         }
     }
 }
