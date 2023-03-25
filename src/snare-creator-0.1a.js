@@ -32,6 +32,8 @@ const canvas = document.querySelector(".visualizer");
 let prevX = 0;
 let prevY = 0;
 
+let osc1Playing = false;
+let noisePlaying = false;
 
 const audioCtx = new AudioContext();
 const canvasCtx = canvas.getContext("2d");
@@ -40,7 +42,7 @@ let osc = audioCtx.createOscillator();
 
 const mediaStreamNode = audioCtx.createMediaStreamDestination();
 const mediaRecorder = new MediaRecorder(mediaStreamNode.stream);
-const saveChunks = [];
+let saveChunks = [];
 
 const genEnv = audioCtx.createGain();
 genEnv.connect(mediaStreamNode);
@@ -297,11 +299,10 @@ function playOsc1(time) {
 
     modulator.start(time);
     osc.start(time);
-
+    osc1Playing = true;
     osc.addEventListener("ended", () => {
-        playButton.setAttribute("playing", "false")
-        playButton.innerHTML = "Play";
-        mediaRecorder.stop();
+        osc1Playing = false;
+        handleSoundEnd()
     }); 
 
     osc.stop(time + attackTime + decayTime + releaseTime);
@@ -360,7 +361,13 @@ function playNoise(time) {
     highpass.connect(distortionNode);
     distortionNode.connect(lowpass)
     lowpass.connect(noiseEnv).connect(genEnv);
+
     noise.start()
+    noisePlaying = true;
+    noise.addEventListener("ended", () => {
+        noisePlaying = false;
+        handleSoundEnd()
+    }); 
     noise.stop(time + attackTime + decayTime + releaseTime);
 }
 
@@ -424,7 +431,13 @@ function handleInputChange(e) {
     updateKnobs();
 }
 
-
+function handleSoundEnd() {
+    if (osc1Playing === false && noisePlaying === false) {
+        mediaRecorder.stop();
+        playButton.setAttribute("playing", "false")
+        playButton.innerHTML = "Play";
+    }
+}
 
 playButton.onclick = () => {
     if (playButton.getAttribute("playing") === "false") {
@@ -439,6 +452,7 @@ playButton.onclick = () => {
         playButton.innerHTML = "Stop";
     } else {
         osc.stop();
+        noise.stop();
         mediaRecorder.stop();
         playButton.setAttribute("playing", "false")
         playButton.innerHTML = "Play";
@@ -446,6 +460,7 @@ playButton.onclick = () => {
 };
 
 mediaRecorder.ondataavailable = (e) => {
+    saveChunks = [];
     saveChunks.push(e.data);
 };
 
