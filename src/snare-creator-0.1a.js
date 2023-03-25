@@ -38,7 +38,12 @@ const canvasCtx = canvas.getContext("2d");
 
 let osc = audioCtx.createOscillator();
 
+const mediaStreamNode = audioCtx.createMediaStreamDestination();
+const mediaRecorder = new MediaRecorder(mediaStreamNode.stream);
+const saveChunks = [];
+
 const genEnv = audioCtx.createGain();
+genEnv.connect(mediaStreamNode);
 genEnv.connect(audioCtx.destination);
 
 //noise buffer creation
@@ -75,11 +80,11 @@ function turnKnob(e, knob) {
     prevX = x;
     prevY = y;
 
-    deg = Math.floor(deg);
     if (deg >= 0) {
         let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
         let knobVal = (knobRange * (deg/180));
         knob.setAttribute("value", knobVal);
+        knob.setAttribute("angle", deg)
         let valueVisualizer = knob.previousElementSibling;
         
         if (valueVisualizer.value.endsWith("Hz")) {
@@ -109,11 +114,11 @@ function slideTurnKnob(e, knob) {
     let deg = +knob.getAttribute("angle");
     
     if (Math.abs(x - prevX) > Math.abs(y - prevY)) {
-        if (Math.abs(x - prevX) === 1) {
+        if (Math.abs(x - prevX) < 30) {
             deg += x - prevX;
         }
     } else if (Math.abs(x - prevX) < Math.abs(y - prevY)){
-        if (Math.abs(y - prevY) === 1) {
+        if (Math.abs(y - prevY) < 30) {
             deg -= y - prevY;
         } 
     }
@@ -123,7 +128,6 @@ function slideTurnKnob(e, knob) {
     } else if (deg < 0) {
         deg = 0;
     }
-    console.log(x - prevX);
 
     prevX = x;
     prevY = y;
@@ -189,7 +193,6 @@ function createDistortionCurve(amount) {
     let k = amount;
     let n_samples = audioCtx.sampleRate;
     let curve = new Float32Array(n_samples);
-    let deg = Math.PI/180
     let x;
 
     for (let i = 0; i < n_samples; i++) {
@@ -298,6 +301,7 @@ function playOsc1(time) {
     osc.addEventListener("ended", () => {
         playButton.setAttribute("playing", "false")
         playButton.innerHTML = "Play";
+        mediaRecorder.stop();
     }); 
 
     osc.stop(time + attackTime + decayTime + releaseTime);
@@ -427,6 +431,7 @@ playButton.onclick = () => {
         if (audioCtx.state === "suspended") {
             audioCtx.resume();
         }
+        mediaRecorder.start();
         let currentTime = audioCtx.currentTime;
         playOsc1(currentTime);
         playNoise(currentTime);
@@ -434,9 +439,19 @@ playButton.onclick = () => {
         playButton.innerHTML = "Stop";
     } else {
         osc.stop();
+        mediaRecorder.stop();
         playButton.setAttribute("playing", "false")
         playButton.innerHTML = "Play";
     }
+};
+
+mediaRecorder.ondataavailable = (e) => {
+    saveChunks.push(e.data);
+};
+
+mediaRecorder.onstop = (e) => {
+    const blob = new Blob(saveChunks, {type: "audio/wav; codec=opus"});
+    document.querySelector("#save-link").setAttribute("href", URL.createObjectURL(blob))
 };
 
 for (let i = 0; i < knobArray.length; i++) {
