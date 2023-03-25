@@ -88,6 +88,9 @@ function turnKnob(e, knob) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
             valueVisualizer.value = `${knobVal.toFixed(2)} dB`;
         } else if (valueVisualizer.value.endsWith("%")) {
+            if (knob.id.includes("sustain")) {
+                knobVal *= 100;
+            }
             valueVisualizer.value = `${knobVal.toFixed(2)}%`;
         }
     }
@@ -187,14 +190,15 @@ function playOsc1(time) {
 
     osc = audioCtx.createOscillator();
     osc.frequency.value = osc1Freq;
+    osc.type ="triangle"
 
     let modulator = audioCtx.createOscillator();
-    modulator.frequency.value = 10000;
+    modulator.frequency.value = 500;
 
     const osc1Env = audioCtx.createGain();
     const modulatorGain = audioCtx.createGain();
  
-    modulatorGain.gain.value = fmAmount;
+    modulatorGain.gain.value = fmAmount * 10;
 
     const distortionNode = audioCtx.createWaveShaper();
 
@@ -277,7 +281,6 @@ function playNoise(time) {
     }
     noiseEnv.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
 
-  
     noise.connect(highpass);
     highpass.connect(distortionNode);
     distortionNode.connect(lowpass)
@@ -312,6 +315,10 @@ function handleInputChange(e) {
         newValue = Math.pow(10, (+newValue / 20));
     }
 
+    if (knob.id.includes("sustain")) {
+        newValue = +newValue / 100;
+    }
+
     if (+newValue < +knob.getAttribute("min")) {
         newValue = +knob.getAttribute("min");
     } else if (+newValue > +knob.getAttribute("max")) {
@@ -329,6 +336,9 @@ function handleInputChange(e) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
             e.target.value = `${knobVal.toFixed(2)} dB`
         } else if (e.target.value.endsWith("%")) {
+            if (knob.id.includes("sustain")) {
+                knobVal *= 100;
+            }
             e.target.value = `${knobVal}%`
         } else {
             e.target.value = `${knobVal} s`
