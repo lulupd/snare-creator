@@ -50,7 +50,7 @@ genEnv.connect(audioCtx.destination);
 
 //noise buffer creation
 let bufferSize = audioCtx.sampleRate * (+noiseAttackKnob.getAttribute("value") + +noiseDecayKnob.getAttribute("value") + +noiseReleaseKnob.getAttribute("value"));
-const noiseBuffer = new AudioBuffer({
+let noiseBuffer = new AudioBuffer({
     length: bufferSize,
     sampleRate: audioCtx.sampleRate,
 });
@@ -285,9 +285,11 @@ function playOsc1(time) {
     if (osc1Gain > 0) {
         osc1Env.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
     }
-    osc1Env.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
+    osc1Env.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
-    
+    //Pitch sweep
+    osc.frequency.setValueAtTime(osc1Freq + 100, time);
+    osc.frequency.exponentialRampToValueAtTime(osc1Freq, time + (decayTime / 4));
 
     modulator.connect(modulatorGain);
     modulatorGain.connect(osc.frequency);
@@ -320,8 +322,11 @@ function playNoise(time) {
     const releaseTime = +noiseReleaseKnob.getAttribute("value");
 
     bufferSize = audioCtx.sampleRate * (attackTime + decayTime + releaseTime);
-    noiseBuffer.length = bufferSize;
-
+    noiseBuffer = new AudioBuffer({
+        length: bufferSize,
+        sampleRate: audioCtx.sampleRate,
+    });
+    
     noiseData = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
         noiseData[i] = Math.random() - 0.5;
@@ -355,7 +360,7 @@ function playNoise(time) {
     if (noiseGain > 0) {
         noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
     }
-    noiseEnv.gain.linearRampToValueAtTime(0, time + decayTime + releaseTime);
+    noiseEnv.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
     noise.connect(highpass);
     highpass.connect(distortionNode);
@@ -433,7 +438,9 @@ function handleInputChange(e) {
 
 function handleSoundEnd() {
     if (osc1Playing === false && noisePlaying === false) {
-        mediaRecorder.stop();
+        if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+        }
         playButton.setAttribute("playing", "false")
         playButton.innerHTML = "Play";
     }
@@ -453,7 +460,9 @@ playButton.onclick = () => {
     } else {
         osc.stop();
         noise.stop();
-        mediaRecorder.stop();
+        if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+        }
         playButton.setAttribute("playing", "false")
         playButton.innerHTML = "Play";
     }
