@@ -30,6 +30,8 @@ const knobMarkers = document.getElementsByClassName("knob-marker");
 
 const valueInputs = document.getElementsByClassName("knob-value");
 
+const cornerDropdown = document.querySelector(".dropdown-content");
+
 const cornerOptions = document.getElementsByClassName("corner-option")
 
 const playButton = document.querySelector(".play");
@@ -44,8 +46,6 @@ let osc1Playing = false;
 let noisePlaying = false;
 
 let db;
-
-let userPresetData = [];
 
 let initialPreset = {};
 
@@ -68,6 +68,7 @@ fetch('/src/data/default-presets.json')
     .then((json) => {
         defaultPresets = json;
         makeDefaultPresetOptions();
+        makeUserPresetOptions();
     });
 
 //knob functionality
@@ -525,6 +526,8 @@ function handleSoundEnd() {
 function handleCornerMenuClick(e) {
     if (e.target.id.includes("save")) {
         savePreset();
+    } else if (e.target.id.includes("delete")) {
+        deletePreset();
     } else if (e.target.id.includes("clear")) {
         clearPresets();
     } else if (e.target.id.includes("init")) {
@@ -537,15 +540,17 @@ function handleCornerMenuClick(e) {
 }
 
 function openCornerMenu() {
-    document.querySelector(".dropdown-content").classList.toggle("show");
+    cornerDropdown.classList.toggle("show");
 }
 
 function savePreset() {
     let presetData = {};
     presetData["name"] = prompt("Name your preset:");
 
-    if (presetData["name"] == null || presetData["name"] === "") {
-        presetData["name"] = `Preset ${userPresetData.length + 1}`;
+    if (presetData["name"] === "") {
+        presetData["name"] = `Preset ${localStorage.length + 1}`;
+    } else if (presetData["name"] == null) {
+        return;
     }
 
     for (knob of knobArray) {
@@ -562,9 +567,6 @@ function savePreset() {
     presetOption.classList.add("user");
     presetOption.innerHTML = presetData["name"];
     presetSelect.appendChild(presetOption);
-    userPresetData.push(presetData);
-
-
 }
 
 function loadPreset(selectBox) {
@@ -601,9 +603,18 @@ function loadPreset(selectBox) {
     
 }
 
+function deletePreset() {
+    const presetName = presetSelect.value;
+    const selectedOption = presetSelect.options[presetSelect.selectedIndex];
+    if (selectedOption.classList.contains("user")) {
+        presetSelect.selectedIndex = 0;
+        selectedOption.remove();
+        localStorage.removeItem(presetName);
+    }
+}
+
 function clearPresets() {
     localStorage.clear();
-    userPresetData = [];
     presetSelect.selectedIndex = 0;
     const userPresetCollection = document.getElementsByClassName("user");
     let userPresets = Array.prototype.slice.call(userPresetCollection);
@@ -722,6 +733,17 @@ presetSelect.addEventListener("change", (e) => {
     loadPreset(e.target);
 });
 
+presetSelect.addEventListener("click", (e) => {
+    if (e.detail === 0) {
+        loadPreset(e.target);
+    }
+});
+
+window.addEventListener("click", (e) => {
+    if (!e.target.matches(".corner-button") && cornerDropdown.classList.contains("show")) {
+        cornerDropdown.classList.remove("show");
+    }
+});
+
 updateKnobs(knobArray);
 updateValueInputs();
-makeUserPresetOptions();
