@@ -62,11 +62,13 @@ let saveChunks = [];
 
 const globalEnv = audioCtx.createGain();
 
-const DBOpenRequest = window.indexedDB.open('SnarePresets');
 
 fetch('/src/data/default-presets.json')
     .then((response) => response.json())
-    .then((json) => defaultPresets = json);
+    .then((json) => {
+        defaultPresets = json;
+        makeDefaultPresetOptions();
+    });
 
 //knob functionality
 function turnKnob(e, knob) {
@@ -353,58 +355,59 @@ function playNoise(time) {
     const releaseTime = +noiseReleaseKnob.getAttribute("value");
 
     const globalSweepAmount = +globalSweepKnob.getAttribute("value");
+    if (attackTime + decayTime + releaseTime > 0) {
+        let noise = createNoise(attackTime + decayTime + releaseTime);
 
-    let noise = createNoise(attackTime + decayTime + releaseTime);
+        const noiseEnv = audioCtx.createGain();
 
-    const noiseEnv = audioCtx.createGain();
+        const highpass = new BiquadFilterNode(audioCtx, {
+            type: "highpass",
+            
+        });
 
-    const highpass = new BiquadFilterNode(audioCtx, {
-        type: "highpass",
+        const lowpass = new BiquadFilterNode(audioCtx, {
+            type: "lowpass",
+            
+        });
         
-    });
+        highpass.frequency.value = highpassFreq;
+        lowpass.frequency.value = lowpassFreq;
 
-    const lowpass = new BiquadFilterNode(audioCtx, {
-        type: "lowpass",
-        
-    });
+        const distortionNode = audioCtx.createWaveShaper();
+
+        distortionNode.curve = createDistortionCurve(distAmount);
+
+        noiseEnv.gain.setValueAtTime(0, time);
+        noiseEnv.gain.linearRampToValueAtTime(noiseGain, time + attackTime);
+        if (noiseGain > 0) {
+            noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
+        }
+        noiseEnv.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
+
+        noise.detune.setValueAtTime(globalSweepAmount, time);
+        noise.detune.linearRampToValueAtTime(0, time + (decayTime / 4))
+
+        noise.connect(highpass);
+        highpass.disconnect();
+
+        if (distAmount > 0) {
+            highpass.connect(distortionNode);
+            distortionNode.connect(lowpass)
+            lowpass.connect(noiseEnv).connect(globalEnv);
+        } else {
+            highpass.connect(lowpass);
+            lowpass.connect(noiseEnv).connect(globalEnv);
+        }
     
-    highpass.frequency.value = highpassFreq;
-    lowpass.frequency.value = lowpassFreq;
 
-    const distortionNode = audioCtx.createWaveShaper();
-
-    distortionNode.curve = createDistortionCurve(distAmount);
-
-    noiseEnv.gain.setValueAtTime(0, time);
-    noiseEnv.gain.linearRampToValueAtTime(noiseGain, time + attackTime);
-    if (noiseGain > 0) {
-        noiseEnv.gain.linearRampToValueAtTime(sustainVolume, time + attackTime + decayTime);
+        noise.start()
+        noisePlaying = true;
+        noise.addEventListener("ended", () => {
+            noisePlaying = false;
+            handleSoundEnd()
+        }); 
+        noise.stop(time + attackTime + decayTime + releaseTime);
     }
-    noiseEnv.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
-
-    noise.detune.setValueAtTime(globalSweepAmount, time);
-    noise.detune.linearRampToValueAtTime(0, time + (decayTime / 4))
-
-    noise.connect(highpass);
-    highpass.disconnect();
-
-    if (distAmount > 0) {
-        highpass.connect(distortionNode);
-        distortionNode.connect(lowpass)
-        lowpass.connect(noiseEnv).connect(globalEnv);
-    } else {
-        highpass.connect(lowpass);
-        lowpass.connect(noiseEnv).connect(globalEnv);
-    }
-  
-
-    noise.start()
-    noisePlaying = true;
-    noise.addEventListener("ended", () => {
-        noisePlaying = false;
-        handleSoundEnd()
-    }); 
-    noise.stop(time + attackTime + decayTime + releaseTime);
 }
 
 function playAll(time) {
@@ -430,6 +433,7 @@ function playAll(time) {
     playOsc1(time);
     playNoise(time);
 }
+
 function updateKnobs(kArray) {
     for (let i = 0; i < kArray.length; i++) {    
         const initialValue = +kArray[i].getAttribute("value")
@@ -545,23 +549,21 @@ function savePreset() {
     }
 
     for (knob of knobArray) {
-        let knobId = convertIdToKey(knob.id);
+        let knobId = knob.id;
         let knobVal = knob.getAttribute("value");
         presetData[knobId] = knobVal;
     }
-    const transaction = db.transaction("userPresets", "readwrite");
-    const objectStore = transaction.objectStore("userPresets");
-    const addRequest = objectStore.add(presetData);
 
-    addRequest.onsuccess = (e) => {
-        let presetOption = document.createElement("option");
-        presetOption.setAttribute("value", presetData["name"]);
-        presetOption.classList.add("preset");
-        presetOption.classList.add("user");
-        presetOption.innerHTML = presetData["name"];
-        presetSelect.appendChild(presetOption);
-        userPresetData.push(presetData);
-    };
+    localStorage.setItem(presetData["name"], JSON.stringify(presetData));
+
+    let presetOption = document.createElement("option");
+    presetOption.setAttribute("value", presetData["name"]);
+    presetOption.classList.add("preset");
+    presetOption.classList.add("user");
+    presetOption.innerHTML = presetData["name"];
+    presetSelect.appendChild(presetOption);
+    userPresetData.push(presetData);
+
 
 }
 
@@ -570,15 +572,11 @@ function loadPreset(selectBox) {
     const selectedOption = selectBox.options[selectBox.selectedIndex];
 
     if (selectedOption.classList.contains("user")) {
-        const transaction = db.transaction("userPresets", "readwrite");
-        const objectStore = transaction.objectStore("userPresets");
-        const index = objectStore.index("name");
-        const getRequest = index.get(presetName);
-
-        getRequest.onsuccess = (e) => {
-            for (const [key, value] of Object.entries(e.target.result)) {
+        let preset = JSON.parse(localStorage.getItem([presetName]));
+        if (preset !== null) {
+            for (const [key, value] of Object.entries(preset)) {
                 if (key !== "name") {
-                    const knob = document.getElementById(convertKeyToId(key));
+                    const knob = document.getElementById(key);
                     knob.setAttribute("value", value);
                     knob.value = value;
                 }
@@ -586,12 +584,13 @@ function loadPreset(selectBox) {
             updateValueInputs();
             updateKnobs(knobArray);
         }
-    } else if (presetName !== "init") {
+    } else if (presetName === "init") {
+        initializePreset();
+    } else {
         let preset = defaultPresets[presetName];
         for (const [key, value] of Object.entries(preset)) {
             if (key !== "name") {
-                const knob = document.getElementById(convertKeyToId(key));
-                console.log(convertKeyToId(key));
+                const knob = document.getElementById(key);
                 knob.setAttribute("value", value);
                 knob.value = value;
             }
@@ -603,14 +602,14 @@ function loadPreset(selectBox) {
 }
 
 function clearPresets() {
-    const transaction = db.transaction("userPresets", "readwrite");
-    const objectStore = transaction.objectStore("userPresets");
-    objectStore.clear();
+    localStorage.clear();
     userPresetData = [];
-    presetSelect.selectedIndex = -1;
-    const userPresets = document.getElementsByClassName("user");
-    for (preset of userPresets) {
-        preset.remove();
+    presetSelect.selectedIndex = 0;
+    const userPresetCollection = document.getElementsByClassName("user");
+    let userPresets = Array.prototype.slice.call(userPresetCollection);
+
+    for (let i = 0; i < userPresets.length; i++) {
+        userPresets[i].remove();
     }
 }
 
@@ -620,6 +619,8 @@ function initializePreset() {
         knob.setAttribute("value", value);
         knob.value = value;
     }
+    updateValueInputs();
+    updateKnobs(knobArray);
 }
 
 function randomizePreset() {
@@ -633,29 +634,27 @@ function randomizePreset() {
     updateKnobs(knobArray);
 }
 
-function convertIdToKey(id) {
-    let splitId = id.split("-");
-    splitId[1] = splitId[1].charAt(0).toUpperCase() + splitId[1].slice(1);
-    let convertedId = splitId.join("");
-    
-    return convertedId;
+function makeUserPresetOptions() {
+    for (let i = 0; i < localStorage.length; i++) {
+        let key = localStorage.key(i);
+        let preset = JSON.parse(localStorage.getItem(key));
+        let presetOption = document.createElement("option");
+        presetOption.setAttribute("value", preset["name"]);
+        presetOption.classList.add("preset");
+        presetOption.classList.add("user");
+        presetOption.innerHTML = preset["name"];
+        presetSelect.appendChild(presetOption);
+    }
 }
 
-function convertKeyToId(key) {
-    let index;
-
-    for (let i = 0; i < key.length; i++) {
-        if (key[i] === key[i].toUpperCase() && key[i] !== key[i].toLowerCase()) {
-            index = i;
-            break;
-        }
-    }
-    
-    if (index == null) {
-        return key;
-    } else {
-        let splitKey = [key.slice(0 , index), key.slice(index).toLowerCase()];
-        return splitKey.join("-");
+function makeDefaultPresetOptions() {
+    let presets = Object.keys(defaultPresets);
+    for (let i = 0; i < presets.length; i++) {
+        let presetOption = document.createElement("option");
+        presetOption.setAttribute("value", presets[i]);
+        presetOption.classList.add("preset");
+        presetOption.innerHTML = presets[i];
+        presetSelect.appendChild(presetOption);
     }
 }
 
@@ -688,70 +687,6 @@ mediaRecorder.ondataavailable = (e) => {
 mediaRecorder.onstop = (e) => {
     const blob = new Blob(saveChunks, {type: "audio/wav; codec=opus"});
     document.querySelector("#save-link").setAttribute("href", URL.createObjectURL(blob))
-};
-
-DBOpenRequest.onerror = (event) => {
-    console.log("Open request failed.")
-};
-
-DBOpenRequest.onsuccess = (event) => {
-
-    db = DBOpenRequest.result;
-    const trans = db.transaction("userPresets", "readwrite");
-    const store = trans.objectStore("userPresets");
-    const index = store.index("name");
-    const getRequest = store.getAll();
-
-    getRequest.onsuccess = (e) => {
-        const existingPresets = e.target.result;
-        for (preset of existingPresets) {
-            let presetOption = document.createElement("option");
-            presetOption.setAttribute("value", preset["name"]);
-            presetOption.classList.add("preset");
-            presetOption.classList.add("user");
-            presetOption.innerHTML = preset["name"];
-            presetSelect.appendChild(presetOption);
-        }
-    };
-};
-
-DBOpenRequest.onupgradeneeded = (e) => {
-    // Save the IDBDatabase interface
-    db = e.target.result;
-  
-    // Create an objectStore for this database
-    const objectStore = db.createObjectStore("userPresets", { autoIncrement: true });
-
-    objectStore.createIndex("name", "name", { unique: false });
-
-    objectStore.createIndex("globalVolume", "globalVolume", { unique: false });
-    objectStore.createIndex("globalDistortion", "globalDistortion", { unique: false });
-    objectStore.createIndex("globalSweep", "globalSweep", { unique: false });
-
-    objectStore.createIndex("osc1Volume", "osc1Volume", { unique: false });
-    objectStore.createIndex("osc1Frequency", "osc1Frequency", { unique: false });
-    objectStore.createIndex("osc1Distortion", "osc1Distortion", { unique: false });
-    objectStore.createIndex("osc1Fm", "osc1Fm", { unique: false });
-    objectStore.createIndex("osc1Attack", "osc1Attack", { unique: false });
-    objectStore.createIndex("osc1Decay", "osc1Decay", { unique: false });
-    objectStore.createIndex("osc1Sustain", "osc1Sustain", { unique: false });
-    objectStore.createIndex("osc1Release", "osc1Release", { unique: false });
-
-    objectStore.createIndex("noiseVolume", "noiseVolume", { unique: false });
-    objectStore.createIndex("noiseFrequency", "noiseFrequency", { unique: false });
-    objectStore.createIndex("noiseDistortion", "noiseDistortion", { unique: false });
-    objectStore.createIndex("noiseFm", "noiseFm", { unique: false });
-    objectStore.createIndex("noiseAttack", "noiseAttack", { unique: false });
-    objectStore.createIndex("noiseDecay", "noiseDecay", { unique: false });
-    objectStore.createIndex("noiseSustain", "noiseSustain", { unique: false });
-    objectStore.createIndex("noiseRelease", "noiseRelease", { unique: false });
-
-    objectStore.transaction.oncomplete = (e) => {
-        const presetObjectStore = db.transaction("userPresets", "readwrite").objectStore("userPresets");
-        for (preset of userPresetData) {
-            presetObjectStore.add(preset);
-        }
-    };
 };
 
 for (let i = 0; i < knobArray.length; i++) {
@@ -789,3 +724,4 @@ presetSelect.addEventListener("change", (e) => {
 
 updateKnobs(knobArray);
 updateValueInputs();
+makeUserPresetOptions();

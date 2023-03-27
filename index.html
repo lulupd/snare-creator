@@ -19,10 +19,6 @@
                             <label for="presets">Presets:</label>
                             <select id="presets" name="presets">
                                 <option class="preset" value="init">Init</option>
-                                <option class="preset" value="classic">Classic</option>
-                                <option class="preset" value="saab">Saab</option>
-                                <option class="preset" value="fiat">Fiat</option>
-                                <option class="preset" value="audi">Audi</option>
                             </select>
                         </div>
                         <div class="corner-button" onclick="openCornerMenu()">
@@ -62,8 +58,8 @@
                                 Distortion
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="5%"/>
-                                <div class="knob" id="global-sweep" min="0" max="100" value="5" angle="0">
+                                <input class="knob-value" value="0%"/>
+                                <div class="knob" id="global-sweep" min="0" max="100" value="0" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 P. Sweep
@@ -144,8 +140,8 @@
                                 Volume
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="1000 Hz"/>
-                                <div class="knob" id="noise-highpass" min="0" max="20000" value="1000" angle="0">
+                                <input class="knob-value" value="0 Hz"/>
+                                <div class="knob" id="noise-highpass" min="0" max="20000" value="0" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 High Pass
@@ -158,8 +154,8 @@
                                 Distortion
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="10000 Hz"/>
-                                <div class="knob" id="noise-lowpass" min="30" max="20000" value="10000" angle="0">
+                                <input class="knob-value" value="20000 Hz"/>
+                                <div class="knob" id="noise-lowpass" min="30" max="20000" value="20000" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Low Pass
@@ -174,22 +170,22 @@
                                 Attack
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="0.10 s"/>
+                                <input class="knob-value" value="0.14 s"/>
                                 <div class="knob" id="noise-decay" min="0" max="0.5" value="0.1" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Decay
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="10%"/>
-                                <div class="knob" id="noise-sustain" min="0" max="1" value="0.1" angle="0">
+                                <input class="knob-value" value="0%"/>
+                                <div class="knob" id="noise-sustain" min="0" max="1" value="0" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Sustain
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="0.10 s"/>
-                                <div class="knob" id="noise-release" min="0" max="1" value="0.10" angle="0">
+                                <input class="knob-value" value="0 s"/>
+                                <div class="knob" id="noise-release" min="0" max="1" value="0" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Release

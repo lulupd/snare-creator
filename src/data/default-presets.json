@@ -1,25 +1,25 @@
 {
-    "classic": {
-        "globalVolume" : 1,
-        "globalDistortion" : 0,
-        "globalSweep" : 5,
+    "Classic": {
+        "global-volume" : 1,
+        "global-distortion" : 0,
+        "global-sweep" : 5,
 
-        "osc1Volume" : 0.81,
-        "osc1Frequency" : 170,
-        "osc1Distortion" : 0,
-        "osc1Fm" : 0,
-        "osc1Attack" : 0,
-        "osc1Decay" : 0.1,
-        "osc1Sustain" : 0,
-        "osc1Release" : 0,
+        "osc1-volume" : 0.5,
+        "osc1-frequency" : 170,
+        "osc1-distortion" : 0,
+        "osc1-fm" : 0,
+        "osc1-attack" : 0,
+        "osc1-decay" : 0.1,
+        "osc1-sustain" : 0,
+        "osc1-release" : 0,
 
-        "noiseVolume" : 1,
-        "noiseHighpass" : 1000,
-        "noiseDistortion" : 0,
-        "noiseLowpass" : 10000,
-        "noiseAttack" : 0,
-        "noiseDecay" : 0.1,
-        "noiseSustain" : 0.1,
-        "noiseRelease" : 0.1
+        "noise-volume" : 1,
+        "noise-highpass" : 1000,
+        "noise-distortion" : 0,
+        "noise-lowpass" : 10000,
+        "noise-attack" : 0.01,
+        "noise-decay" : 0.1,
+        "noise-sustain" : 0.1,
+        "noise-release" : 0.1
     }
 }
