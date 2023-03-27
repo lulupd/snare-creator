@@ -9,20 +9,28 @@ const osc1SustainKnob = document.querySelector("#osc1-sustain");
 const osc1ReleaseKnob = document.querySelector("#osc1-release");
 
 const noiseVolKnob = document.querySelector("#noise-volume");
-const noiseHighPassKnob = document.querySelector("#noise-high-pass");
+const noiseHighPassKnob = document.querySelector("#noise-highpass");
 const noiseDistKnob = document.querySelector("#noise-distortion");
-const noiseLowPassKnob = document.querySelector("#noise-low-pass");
+const noiseLowPassKnob = document.querySelector("#noise-lowpass");
 
 const noiseAttackKnob = document.querySelector("#noise-attack");
 const noiseDecayKnob = document.querySelector("#noise-decay");
 const noiseSustainKnob = document.querySelector("#noise-sustain");
 const noiseReleaseKnob = document.querySelector("#noise-release");
 
+const globalVolKnob = document.querySelector("#global-volume");
+const globalDistKnob = document.querySelector("#global-distortion");
+const globalSweepKnob = document.querySelector("#global-sweep");
+
+const presetSelect = document.querySelector("#presets");
+
 const knobArray = document.getElementsByClassName("knob");
 
 const knobMarkers = document.getElementsByClassName("knob-marker");
 
 const valueInputs = document.getElementsByClassName("knob-value");
+
+const cornerOptions = document.getElementsByClassName("corner-option")
 
 const playButton = document.querySelector(".play");
 
@@ -35,6 +43,14 @@ let prevY = 0;
 let osc1Playing = false;
 let noisePlaying = false;
 
+let db;
+
+let userPresetData = [];
+
+let initialPreset = {};
+
+let defaultPresets = {};
+
 const audioCtx = new AudioContext();
 const canvasCtx = canvas.getContext("2d");
 
@@ -44,24 +60,13 @@ const mediaStreamNode = audioCtx.createMediaStreamDestination();
 const mediaRecorder = new MediaRecorder(mediaStreamNode.stream);
 let saveChunks = [];
 
-const genEnv = audioCtx.createGain();
-genEnv.connect(mediaStreamNode);
-genEnv.connect(audioCtx.destination);
+const globalEnv = audioCtx.createGain();
 
-//noise buffer creation
-let bufferSize = audioCtx.sampleRate * (+noiseAttackKnob.getAttribute("value") + +noiseDecayKnob.getAttribute("value") + +noiseReleaseKnob.getAttribute("value"));
-let noiseBuffer = new AudioBuffer({
-    length: bufferSize,
-    sampleRate: audioCtx.sampleRate,
-});
+const DBOpenRequest = window.indexedDB.open('SnarePresets');
 
-let noiseData = noiseBuffer.getChannelData(0);
-for (let i = 0; i < bufferSize; i++) {
-    noiseData[i] = Math.random() - 0.5;
-}
-let noise = new AudioBufferSourceNode(audioCtx, {
-    buffer: noiseBuffer,
-});
+fetch('/src/data/default-presets.json')
+    .then((response) => response.json())
+    .then((json) => defaultPresets = json);
 
 //knob functionality
 function turnKnob(e, knob) {
@@ -253,6 +258,24 @@ function createWaveform(source) {
     draw();
 }
 
+function createNoise(duration) {
+    let bufferSize = audioCtx.sampleRate * duration;
+    let noiseBuffer = new AudioBuffer({
+        length: bufferSize,
+        sampleRate: audioCtx.sampleRate,
+    });
+    
+    let noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        noiseData[i] = Math.random() - 0.5;
+    }
+    let noise = new AudioBufferSourceNode(audioCtx, {
+        buffer: noiseBuffer,
+    });
+
+    return noise;
+}
+
 function playOsc1(time) {
     const osc1Gain = +osc1VolKnob.getAttribute("value");
     const osc1Freq = +osc1FreqKnob.getAttribute("value");
@@ -263,6 +286,8 @@ function playOsc1(time) {
     const decayTime = +osc1DecayKnob.getAttribute("value");
     const sustainVolume = +osc1SustainKnob.getAttribute("value");
     const releaseTime = +osc1ReleaseKnob.getAttribute("value");
+
+    const globalSweepAmount = +globalSweepKnob.getAttribute("value");
 
     osc = audioCtx.createOscillator();
     osc.frequency.value = osc1Freq;
@@ -276,9 +301,9 @@ function playOsc1(time) {
  
     modulatorGain.gain.value = fmAmount * 10;
 
-    const distortionNode = audioCtx.createWaveShaper();
+    const osc1DistortionNode = audioCtx.createWaveShaper();
 
-    distortionNode.curve = createDistortionCurve(distAmount);
+    osc1DistortionNode.curve = createDistortionCurve(distAmount);
 
     osc1Env.gain.setValueAtTime(0, time);
     osc1Env.gain.linearRampToValueAtTime(osc1Gain, time + attackTime);
@@ -288,16 +313,22 @@ function playOsc1(time) {
     osc1Env.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
     //Pitch sweep
-    osc.frequency.setValueAtTime(osc1Freq + 100, time);
+    osc.frequency.setValueAtTime(osc1Freq + (globalSweepAmount * 10), time);
     osc.frequency.exponentialRampToValueAtTime(osc1Freq, time + (decayTime / 4));
 
     modulator.connect(modulatorGain);
     modulatorGain.connect(osc.frequency);
     
-    osc.connect(distortionNode);
-    distortionNode.connect(osc1Env).connect(genEnv);
+    osc.disconnect();
+    if (distAmount > 0) {
+        osc.connect(osc1DistortionNode);
+        osc1DistortionNode.connect(osc1Env).connect(globalEnv);
+    } else {
+        osc.connect(osc1Env).connect(globalEnv);
+    }
+    
 
-    createWaveform(genEnv);
+    createWaveform(globalEnv);
 
     modulator.start(time);
     osc.start(time);
@@ -321,20 +352,9 @@ function playNoise(time) {
     const sustainVolume = +noiseSustainKnob.getAttribute("value");
     const releaseTime = +noiseReleaseKnob.getAttribute("value");
 
-    bufferSize = audioCtx.sampleRate * (attackTime + decayTime + releaseTime);
-    noiseBuffer = new AudioBuffer({
-        length: bufferSize,
-        sampleRate: audioCtx.sampleRate,
-    });
-    
-    noiseData = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-        noiseData[i] = Math.random() - 0.5;
-    }
+    const globalSweepAmount = +globalSweepKnob.getAttribute("value");
 
-    noise = new AudioBufferSourceNode(audioCtx, {
-        buffer: noiseBuffer,
-    });
+    let noise = createNoise(attackTime + decayTime + releaseTime);
 
     const noiseEnv = audioCtx.createGain();
 
@@ -362,10 +382,21 @@ function playNoise(time) {
     }
     noiseEnv.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
+    noise.detune.setValueAtTime(globalSweepAmount, time);
+    noise.detune.linearRampToValueAtTime(0, time + (decayTime / 4))
+
     noise.connect(highpass);
-    highpass.connect(distortionNode);
-    distortionNode.connect(lowpass)
-    lowpass.connect(noiseEnv).connect(genEnv);
+    highpass.disconnect();
+
+    if (distAmount > 0) {
+        highpass.connect(distortionNode);
+        distortionNode.connect(lowpass)
+        lowpass.connect(noiseEnv).connect(globalEnv);
+    } else {
+        highpass.connect(lowpass);
+        lowpass.connect(noiseEnv).connect(globalEnv);
+    }
+  
 
     noise.start()
     noisePlaying = true;
@@ -376,21 +407,62 @@ function playNoise(time) {
     noise.stop(time + attackTime + decayTime + releaseTime);
 }
 
+function playAll(time) {
+    const globalGain = +globalVolKnob.getAttribute("value");
+    const globalDistAmount = +globalDistKnob.getAttribute("value");
+
+    const globalDistortionNode = audioCtx.createWaveShaper();
+    globalDistortionNode.curve = createDistortionCurve(globalDistAmount);
+    globalDistortionNode.oversample = "2x";
+    
+    globalEnv.gain.value = globalGain;
+
+    globalEnv.disconnect();
+    if (globalDistAmount > 0) {
+        globalEnv.connect(globalDistortionNode);
+        globalDistortionNode.connect(mediaStreamNode);
+        globalDistortionNode.connect(audioCtx.destination);
+    } else {
+        globalEnv.connect(mediaStreamNode);
+        globalEnv.connect(audioCtx.destination);
+    }
+
+    playOsc1(time);
+    playNoise(time);
+}
 function updateKnobs(kArray) {
     for (let i = 0; i < kArray.length; i++) {    
         const initialValue = +kArray[i].getAttribute("value")
         const knobRange = +kArray[i].getAttribute("max") - +kArray[i].getAttribute("min");
-        if (initialValue !== (knobRange / 2)) {
-            const deg = (initialValue / knobRange) * 180;
-            const result = Math.floor(deg - 90);
-            kArray[i].style.transform = `rotate(${result}deg)`;
-            kArray[i].setAttribute("angle", deg);
+        const deg = (initialValue / knobRange) * 180;
+        const result = Math.floor(deg - 90);
+        kArray[i].style.transform = `rotate(${result}deg)`;
+        kArray[i].setAttribute("angle", deg);
+    }
+}
+
+function updateValueInputs() {
+    for (input of valueInputs) {
+        let knob = input.nextElementSibling;
+        let knobVal = +knob.getAttribute("value");
+        if (input.value.endsWith("Hz")) {
+            input.value = `${knobVal.toFixed(2)} Hz`;
+        } else if (input.value.endsWith("s")) {
+            input.value = `${knobVal.toFixed(2)} s`;
+        } else if (input.value.endsWith("dB")) {
+            knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            input.value = `${knobVal.toFixed(2)} dB`;
+        } else if (input.value.endsWith("%")) {
+            if (knob.id.includes("sustain")) {
+                knobVal *= 100;
+            }
+            input.value = `${knobVal.toFixed(2)}%`;
         }
     }
 }
 
 function handleInputChange(e) {
-    knob = e.target.nextElementSibling;
+    let knob = e.target.nextElementSibling;
     let newValue = e.target.value;
     if (newValue.endsWith("Hz")) {
         newValue = newValue.slice(0, -2);
@@ -433,7 +505,7 @@ function handleInputChange(e) {
             e.target.value = `${knobVal} s`
         }
     }
-    updateKnobs();
+    updateKnobs(knobArray);
 }
 
 function handleSoundEnd() {
@@ -446,6 +518,147 @@ function handleSoundEnd() {
     }
 }
 
+function handleCornerMenuClick(e) {
+    if (e.target.id.includes("save")) {
+        savePreset();
+    } else if (e.target.id.includes("clear")) {
+        clearPresets();
+    } else if (e.target.id.includes("init")) {
+        initializePreset();
+    } else if (e.target.id.includes("random")) {
+        randomizePreset();
+    }
+    updateKnobs(knobArray);
+    updateValueInputs();
+}
+
+function openCornerMenu() {
+    document.querySelector(".dropdown-content").classList.toggle("show");
+}
+
+function savePreset() {
+    let presetData = {};
+    presetData["name"] = prompt("Name your preset:");
+
+    if (presetData["name"] == null || presetData["name"] === "") {
+        presetData["name"] = `Preset ${userPresetData.length + 1}`;
+    }
+
+    for (knob of knobArray) {
+        let knobId = convertIdToKey(knob.id);
+        let knobVal = knob.getAttribute("value");
+        presetData[knobId] = knobVal;
+    }
+    const transaction = db.transaction("userPresets", "readwrite");
+    const objectStore = transaction.objectStore("userPresets");
+    const addRequest = objectStore.add(presetData);
+
+    addRequest.onsuccess = (e) => {
+        let presetOption = document.createElement("option");
+        presetOption.setAttribute("value", presetData["name"]);
+        presetOption.classList.add("preset");
+        presetOption.classList.add("user");
+        presetOption.innerHTML = presetData["name"];
+        presetSelect.appendChild(presetOption);
+        userPresetData.push(presetData);
+    };
+
+}
+
+function loadPreset(selectBox) {
+    const presetName = selectBox.value;
+    const selectedOption = selectBox.options[selectBox.selectedIndex];
+
+    if (selectedOption.classList.contains("user")) {
+        const transaction = db.transaction("userPresets", "readwrite");
+        const objectStore = transaction.objectStore("userPresets");
+        const index = objectStore.index("name");
+        const getRequest = index.get(presetName);
+
+        getRequest.onsuccess = (e) => {
+            for (const [key, value] of Object.entries(e.target.result)) {
+                if (key !== "name") {
+                    const knob = document.getElementById(convertKeyToId(key));
+                    knob.setAttribute("value", value);
+                    knob.value = value;
+                }
+            }
+            updateValueInputs();
+            updateKnobs(knobArray);
+        }
+    } else if (presetName !== "init") {
+        let preset = defaultPresets[presetName];
+        for (const [key, value] of Object.entries(preset)) {
+            if (key !== "name") {
+                const knob = document.getElementById(convertKeyToId(key));
+                console.log(convertKeyToId(key));
+                knob.setAttribute("value", value);
+                knob.value = value;
+            }
+        }
+        updateValueInputs();
+        updateKnobs(knobArray);
+    }
+    
+}
+
+function clearPresets() {
+    const transaction = db.transaction("userPresets", "readwrite");
+    const objectStore = transaction.objectStore("userPresets");
+    objectStore.clear();
+    userPresetData = [];
+    presetSelect.selectedIndex = -1;
+    const userPresets = document.getElementsByClassName("user");
+    for (preset of userPresets) {
+        preset.remove();
+    }
+}
+
+function initializePreset() {
+    for (const [key, value] of Object.entries(initialPreset)) {
+        const knob = document.getElementById(key);
+        knob.setAttribute("value", value);
+        knob.value = value;
+    }
+}
+
+function randomizePreset() {
+    let presetData = {};
+    for (knob of knobArray) {
+        let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
+        let knobVal = (Math.random() * knobRange) + +knob.getAttribute("min");
+        knob.setAttribute("value", knobVal);
+    }
+    updateValueInputs();
+    updateKnobs(knobArray);
+}
+
+function convertIdToKey(id) {
+    let splitId = id.split("-");
+    splitId[1] = splitId[1].charAt(0).toUpperCase() + splitId[1].slice(1);
+    let convertedId = splitId.join("");
+    
+    return convertedId;
+}
+
+function convertKeyToId(key) {
+    let index;
+
+    for (let i = 0; i < key.length; i++) {
+        if (key[i] === key[i].toUpperCase() && key[i] !== key[i].toLowerCase()) {
+            index = i;
+            break;
+        }
+    }
+    
+    if (index == null) {
+        return key;
+    } else {
+        let splitKey = [key.slice(0 , index), key.slice(index).toLowerCase()];
+        return splitKey.join("-");
+    }
+}
+
 playButton.onclick = () => {
     if (playButton.getAttribute("playing") === "false") {
         if (audioCtx.state === "suspended") {
@@ -453,8 +666,7 @@ playButton.onclick = () => {
         }
         mediaRecorder.start();
         let currentTime = audioCtx.currentTime;
-        playOsc1(currentTime);
-        playNoise(currentTime);
+        playAll(currentTime);
         playButton.setAttribute("playing", "true");
         playButton.innerHTML = "Stop";
     } else {
@@ -478,6 +690,70 @@ mediaRecorder.onstop = (e) => {
     document.querySelector("#save-link").setAttribute("href", URL.createObjectURL(blob))
 };
 
+DBOpenRequest.onerror = (event) => {
+    console.log("Open request failed.")
+};
+
+DBOpenRequest.onsuccess = (event) => {
+
+    db = DBOpenRequest.result;
+    const trans = db.transaction("userPresets", "readwrite");
+    const store = trans.objectStore("userPresets");
+    const index = store.index("name");
+    const getRequest = store.getAll();
+
+    getRequest.onsuccess = (e) => {
+        const existingPresets = e.target.result;
+        for (preset of existingPresets) {
+            let presetOption = document.createElement("option");
+            presetOption.setAttribute("value", preset["name"]);
+            presetOption.classList.add("preset");
+            presetOption.classList.add("user");
+            presetOption.innerHTML = preset["name"];
+            presetSelect.appendChild(presetOption);
+        }
+    };
+};
+
+DBOpenRequest.onupgradeneeded = (e) => {
+    // Save the IDBDatabase interface
+    db = e.target.result;
+  
+    // Create an objectStore for this database
+    const objectStore = db.createObjectStore("userPresets", { autoIncrement: true });
+
+    objectStore.createIndex("name", "name", { unique: false });
+
+    objectStore.createIndex("globalVolume", "globalVolume", { unique: false });
+    objectStore.createIndex("globalDistortion", "globalDistortion", { unique: false });
+    objectStore.createIndex("globalSweep", "globalSweep", { unique: false });
+
+    objectStore.createIndex("osc1Volume", "osc1Volume", { unique: false });
+    objectStore.createIndex("osc1Frequency", "osc1Frequency", { unique: false });
+    objectStore.createIndex("osc1Distortion", "osc1Distortion", { unique: false });
+    objectStore.createIndex("osc1Fm", "osc1Fm", { unique: false });
+    objectStore.createIndex("osc1Attack", "osc1Attack", { unique: false });
+    objectStore.createIndex("osc1Decay", "osc1Decay", { unique: false });
+    objectStore.createIndex("osc1Sustain", "osc1Sustain", { unique: false });
+    objectStore.createIndex("osc1Release", "osc1Release", { unique: false });
+
+    objectStore.createIndex("noiseVolume", "noiseVolume", { unique: false });
+    objectStore.createIndex("noiseFrequency", "noiseFrequency", { unique: false });
+    objectStore.createIndex("noiseDistortion", "noiseDistortion", { unique: false });
+    objectStore.createIndex("noiseFm", "noiseFm", { unique: false });
+    objectStore.createIndex("noiseAttack", "noiseAttack", { unique: false });
+    objectStore.createIndex("noiseDecay", "noiseDecay", { unique: false });
+    objectStore.createIndex("noiseSustain", "noiseSustain", { unique: false });
+    objectStore.createIndex("noiseRelease", "noiseRelease", { unique: false });
+
+    objectStore.transaction.oncomplete = (e) => {
+        const presetObjectStore = db.transaction("userPresets", "readwrite").objectStore("userPresets");
+        for (preset of userPresetData) {
+            presetObjectStore.add(preset);
+        }
+    };
+};
+
 for (let i = 0; i < knobArray.length; i++) {
     knobArray[i].addEventListener("mousedown", () => {startSlideRotation(knobArray[i])});
 }
@@ -487,14 +763,29 @@ for (let i = 0; i < knobMarkers.length; i++) {
     knobMarkers[i].addEventListener("mousedown", () => {startRotation(knob)});
 }
 
-updateKnobs(knobArray);
-
-for (let j = 0; j < valueInputs.length; j++) {
-    valueInputs[j].addEventListener("change", handleInputChange);
-    valueInputs[j].addEventListener("keyup", (e) => {
+for (let i = 0; i < valueInputs.length; i++) {
+    valueInputs[i].addEventListener("change", handleInputChange);
+    valueInputs[i].addEventListener("keyup", (e) => {
         if (e.key === "Enter") {
             handleInputChange(e);
-            valueInputs[j].blur();
+            valueInputs[i].blur();
         }
     });
 }
+
+for (let i = 0; i < cornerOptions.length; i++) {
+    cornerOptions[i].addEventListener("click", handleCornerMenuClick);
+}
+
+for (let i = 0; i < knobArray.length; i++) {
+    let knobId = knobArray[i].id;
+    let knobVal = knobArray[i].getAttribute("value");
+    initialPreset[knobId] = knobVal;
+}
+
+presetSelect.addEventListener("change", (e) => {
+    loadPreset(e.target);
+});
+
+updateKnobs(knobArray);
+updateValueInputs();

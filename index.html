@@ -14,6 +14,26 @@
         <div class="card-container">
             <div class="osc-card">
                 <div class="top">
+                    <div class="top-bar">
+                        <div class="preset-container">
+                            <label for="presets">Presets:</label>
+                            <select id="presets" name="presets">
+                                <option class="preset" value="init">Init</option>
+                                <option class="preset" value="classic">Classic</option>
+                                <option class="preset" value="saab">Saab</option>
+                                <option class="preset" value="fiat">Fiat</option>
+                                <option class="preset" value="audi">Audi</option>
+                            </select>
+                        </div>
+                        <div class="corner-button" onclick="openCornerMenu()">
+                            <div class="dropdown-content">
+                                <div class="corner-option" id="save-preset">Save Preset</div>
+                                <div class="corner-option" id="random-preset">Randomize Preset</div>
+                                <div class="corner-option" id="init-preset">Initialize Preset</div>
+                                <div class="corner-option" id="clear-preset">Clear User Presets</div>
+                            </div>
+                        </div>
+                    </div>
                     <canvas class="visualizer" width="420px" height="150px"></canvas>
                     <div class="button-container">
                         <button class="play" playing="false">Play</button>
@@ -24,12 +44,38 @@
                     </div>
                 </div>
                 <div class="knobs">
+                    Global Parameters
+                    <div class="global">
+                        <div class="knob-row">
+                            <div class="knob-container">
+                                <input class="knob-value" value="0 dB"/>
+                                <div class="knob" id="global-volume" min="0" max="1" value="1" angle="0">
+                                    <div class="knob-marker"></div>
+                                </div>
+                                Volume
+                            </div>
+                            <div class="knob-container">
+                                <input class="knob-value" value="0%"/>
+                                <div class="knob" id="global-distortion" min="0" max="100" value="0" angle="0">
+                                    <div class="knob-marker"></div>
+                                </div>
+                                Distortion
+                            </div>
+                            <div class="knob-container">
+                                <input class="knob-value" value="5%"/>
+                                <div class="knob" id="global-sweep" min="0" max="100" value="5" angle="0">
+                                    <div class="knob-marker"></div>
+                                </div>
+                                P. Sweep
+                            </div>
+                        </div>
+                    </div>
                     Osc1
                     <div class="osc1">
                         <div class="knob-row">
                             <div class="knob-container">
                                 <input class="knob-value" value="0 dB"/>
-                                <div class="knob" id="osc1-volume" min="0" max="1" value="1">
+                                <div class="knob" id="osc1-volume" min="0" max="1" value="1" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Volume
@@ -80,7 +126,7 @@
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0 s"/>
-                                <div class="knob" id="osc1-release" min="0" max="2" value="0" angle="0">
+                                <div class="knob" id="osc1-release" min="0" max="1" value="0" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Release
@@ -99,21 +145,21 @@
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="1000 Hz"/>
-                                <div class="knob" id="noise-high-pass" min="0" max="20000" value="1000" angle="0">
+                                <div class="knob" id="noise-highpass" min="0" max="20000" value="1000" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 High Pass
                             </div>
                             <div class="knob-container">
-                                <input class="knob-value" value="10%"/>
-                                <div class="knob" id="noise-distortion" min="0" max="100" value="10" angle="0">
+                                <input class="knob-value" value="0%"/>
+                                <div class="knob" id="noise-distortion" min="0" max="100" value="0" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Distortion
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="10000 Hz"/>
-                                <div class="knob" id="noise-low-pass" min="30" max="20000" value="10000" angle="0">
+                                <div class="knob" id="noise-lowpass" min="30" max="20000" value="10000" angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 Low Pass

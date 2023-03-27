@@ -4,14 +4,15 @@ html {
 }
 
 body {
+    margin: 0;
     height: inherit;
     user-select: none;
     -moz-user-select: none;
-    background: linear-gradient(-45deg, transparent, #c8cac9);
+    background: linear-gradient(white, #c8cac9);
 }
 
 .card-container {
-    height: inherit;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -24,15 +25,10 @@ body {
     height: 900px;
     background-color: #e1f0ea;
     flex: 0 0 auto;
-    padding: 32px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     border-radius: 25px;
-}
-
-.visualizer {
-    background-color: black;
 }
 
 .osc-card .top {
@@ -40,6 +36,81 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+.top-bar {
+    width: 420px;
+    margin: 12px;
+    display: flex;
+    justify-content: center;
+}
+
+.preset-container {
+    width: 210px;
+    display: flex;
+    align-items: center;
+}
+
+.corner-button {
+    margin-right: -150px;
+    margin-left: 150px;
+    width: 15px;
+    height: 15px;
+    border-style: solid;
+    border-color: #45433e;
+    border-radius: 25%;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.corner-button::after {
+    content: "";
+    width: 0.8em;
+    height: 0.5em;
+    background-color: #45433e;
+    position: absolute;
+    clip-path: polygon(100% 0%, 0 0%, 50% 100%);
+    flex: 0 0 auto;
+  }
+
+.dropdown-content {
+    display: none;
+    list-style: none;
+    position: relative;
+    top: 90px;
+    right: 100px;
+    background-color: white;
+}
+
+.corner-option {
+    width: 200px;
+    padding: 10px;
+}
+
+.corner-option::before {
+    content: "- ";
+}
+
+.corner-option:hover {
+    background-color: #6cc7a3;
+}
+
+.show {
+    display: block;
+}
+
+select {
+    width: 100%;
+    margin-left: 5px;
+    background-color: white;
+    text-align: center;
+}
+
+.visualizer {
+    background-color: black;
 }
 
 .osc-card .knobs {
@@ -51,14 +122,16 @@ body {
 
 .knob-row {
     display: flex;
+    width: 420px;
     text-align: center;
-    justify-content: center;
+    justify-content: space-between;
 }
 
 .button-container {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around;
+    width: 420px;
+    flex: auto;
+    justify-content: space-between;
     margin: 12px 0px;
 }
 
@@ -73,7 +146,7 @@ body {
     flex-direction: column;
     width: 75px;
     height: 100px;
-    margin: 10px;
+    margin: 5px 10px;
     align-items: center;
     text-align: center;
     font-size: small;
