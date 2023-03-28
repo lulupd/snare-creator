@@ -650,19 +650,6 @@ function updateValueInputs() {
             }
             input.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
         }
-        if (input.value.endsWith("Hz")) {
-            input.value = `${knobVal.toFixed(2)} Hz`;
-        } else if (input.value.endsWith("s")) {
-            input.value = `${knobVal.toFixed(2)} s`;
-        } else if (input.value.endsWith("dB")) {
-            
-            input.value = `${knobVal.toFixed(2)} dB`;
-        } else if (input.value.endsWith("%")) {
-            if (knob.id.includes("sustain")) {
-                knobVal *= 100;
-            }
-            input.value = `${knobVal.toFixed(2)}%`;
-        }
     }
 }
 
@@ -807,11 +794,13 @@ function deletePreset() {
 
 function clearPresets() {
     localStorage.clear();
-    presetSelect.selectedIndex = 0;
     const userPresetCollection = document.getElementsByClassName("user");
-    let userPresets = Array.prototype.slice.call(userPresetCollection);
-
+    let userPresets = Array.from(userPresetCollection);
     for (let i = 0; i < userPresets.length; i++) {
+        if (userPresets[i].value === presetSelect.value) {
+            presetSelect.selectedIndex = 0;
+            initializePreset();
+        }
         userPresets[i].remove();
     }
 }
@@ -819,7 +808,7 @@ function clearPresets() {
 function initializePreset() {
     for (const [key, value] of Object.entries(initialPreset)) {
         const knob = document.getElementById(key);
-        knob.value = value;
+        knob.dataset.value = value;
     }
     updateValueInputs();
     updateKnobs(knobArray);
@@ -827,7 +816,7 @@ function initializePreset() {
 
 function randomizePreset() {
     for (knob of knobArray) {
-        if (!knob.className.includes("effect")) {
+        if (knob.id.includes("global") || knob.id.includes("osc1") || knob.id.includes("noise")) {
             let knobRange = +knob.dataset.max - +knob.dataset.min;
             let knobVal = (Math.random() * knobRange) + +knob.dataset.min;
             knob.dataset.value = knobVal;
