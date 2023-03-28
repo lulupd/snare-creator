@@ -107,6 +107,8 @@ function turnKnob(e, knob) {
                 knobVal *= 100;
             }
             knobInput.value = `${knobVal.toFixed(2)}%`;
+        } else {
+            knobInput.value = knobVal.toFixed(2);
         }
     }
 
@@ -160,6 +162,8 @@ function slideTurnKnob(e, knob) {
             knobVal *= 100;
         }
         knobInput.value = `${knobVal.toFixed(2)}%`;
+    } else {
+        knobInput.value = knobVal.toFixed(2);
     }
 
     return deg;
@@ -675,14 +679,13 @@ function handleInputChange(e) {
     } else if (newValue.endsWith("dB")) {
         newValue = newValue.slice(0, -2);
         newValue.trimEnd();
-        if (knob.id.includes("volume") || knob.className.includes("volume")) {
-            newValue = Math.pow(10, (+newValue / 20));
-        }
     }
     
 
-    if (knob.id.includes("sustain")) {
+    if (knob.id.includes("sustain") || knob.className.includes("sustain")) {
         newValue = +newValue / 100;
+    } else if (knob.id.includes("volume") || knob.className.includes("volume")) {
+        newValue = Math.pow(10, (+newValue / 20));
     }
 
     if (+newValue < +knob.dataset.min) {
@@ -693,23 +696,12 @@ function handleInputChange(e) {
 
     if (!isNaN(newValue) && !isNaN(parseInt(newValue))) {
         knob.dataset.value = +newValue;
-
-        let knobVal = +knob.dataset.value;
+        let knobUnit = knob.dataset.unit;
     
-        if (e.target.value.endsWith("Hz")) {
-            e.target.value = `${knobVal} Hz`
-        } else if (e.target.value.endsWith("dB")) {
-            if (knob.id.includes("volume") || knob.className.includes("volume")) {
-                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
-            }
-            e.target.value = `${knobVal.toFixed(2)} dB`
-        } else if (e.target.value.endsWith("%")) {
-            if (knob.id.includes("sustain")) {
-                knobVal *= 100;
-            }
-            e.target.value = `${knobVal}%`
+        if (knobUnit === "%") {
+            e.target.value = `${e.target.value}${knobUnit}`
         } else {
-            e.target.value = `${knobVal} s`
+            e.target.value = `${e.target.value} ${knobUnit}`
         }
     }
     updateKnobs(knobArray);
