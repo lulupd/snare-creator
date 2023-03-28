@@ -92,12 +92,11 @@ function turnKnob(e, knob) {
         knob.setAttribute("value", knobVal) + +knob.getAttribute("min");
         knob.setAttribute("angle", deg)
         let knobInput = knob.previousElementSibling;
-        
         if (knobInput.value.endsWith("Hz")) {
             knobInput.value = `${knobVal.toFixed(2)} Hz`;
         } else if (knobInput.value.endsWith("s")) {
             knobInput.value = `${knobVal.toFixed(2)} s`;
-        } else if (knobInput.value.endsWith("dB") && knob.id.includes("volume")) {
+        } else if (knobInput.value.endsWith("dB") && (knob.id.includes("volume") || knob.className.includes("volume"))) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
             knobInput.value = `${knobVal.toFixed(2)} dB`;
         } else if (knobInput.value.endsWith("dB")) {
@@ -150,7 +149,7 @@ function slideTurnKnob(e, knob) {
         knobInput.value = `${knobVal.toFixed(2)} Hz`;
     } else if (knobInput.value.endsWith("s")) {
         knobInput.value = `${knobVal.toFixed(2)} s`;
-    } else if (knobInput.value.endsWith("dB") && knob.id.includes("volume")) {
+    } else if (knobInput.value.endsWith("dB") && (knob.id.includes("volume") || knob.className.includes("volume"))) {
         knobVal = 20 * (Math.log(knobVal)/Math.LN10);
         knobInput.value = `${knobVal.toFixed(2)} dB`;
     } else if (knobInput.value.endsWith("dB")) {
@@ -650,7 +649,7 @@ function updateValueInputs() {
             input.value = `${knobVal.toFixed(2)} Hz`;
         } else if (input.value.endsWith("s")) {
             input.value = `${knobVal.toFixed(2)} s`;
-        } else if (input.value.endsWith("dB") && knob.id.includes("volume")) {
+        } else if (input.value.endsWith("dB") && (knob.id.includes("volume") || knob.className.includes("volume"))) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
             input.value = `${knobVal.toFixed(2)} dB`;
         } else if (input.value.endsWith("dB")) {
@@ -673,10 +672,13 @@ function handleInputChange(e) {
     } else if (newValue.endsWith("s") || newValue.endsWith("%")) {
         newValue = newValue.slice(0, -1);
         newValue.trimEnd();
-    } else if (newValue.endsWith("dB")) {
+    } else if (newValue.endsWith("dB") && (knob.id.includes("volume") || knob.className.includes("volume"))) {
         newValue = newValue.slice(0, -2);
         newValue.trimEnd();
         newValue = Math.pow(10, (+newValue / 20));
+    } else if (newValue.endsWith("dB")) {
+        newValue = newValue.slice(0, -2);
+        newValue.trimEnd();
     }
 
     if (knob.id.includes("sustain")) {
@@ -696,8 +698,10 @@ function handleInputChange(e) {
     
         if (e.target.value.endsWith("Hz")) {
             e.target.value = `${knobVal} Hz`
-        } else if (e.target.value.endsWith("dB")) {
+        } else if (e.target.value.endsWith("dB") && (knob.id.includes("volume") || knob.className.includes("volume"))) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            e.target.value = `${knobVal.toFixed(2)} dB`
+        } else if (e.target.value.endsWith("dB")) {
             e.target.value = `${knobVal.toFixed(2)} dB`
         } else if (e.target.value.endsWith("%")) {
             if (knob.id.includes("sustain")) {
