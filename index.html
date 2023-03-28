@@ -33,7 +33,7 @@
                     </div>
                     <canvas class="visualizer" width="420px" height="150px"></canvas>
                     <div class="button-container">
-                        <button class="play" playing="false">Play</button>
+                        <button class="play" data-playing="false">Play</button>
                         <a href="" id="save-link" download="snare">
                             <button class="save" download>Save</button>
                         </a>
@@ -46,21 +46,21 @@
                         <div class="knob-row">
                             <div class="knob-container">
                                 <input class="knob-value" value="0 dB"/>
-                                <div class="knob" id="global-volume" min="0" max="1" value="1" angle="0">
+                                <div class="knob" id="global-volume" data-min="0" data-max="1" data-value="1" data-angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Volume</div> 
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="global-distortion" min="0" max="100" value="0" angle="0">
+                                <div class="knob" id="global-distortion" data-min="0" data-max="100" data-value="0" data-angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Distortion</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="global-sweep" min="0" max="100" value="0" angle="0">
+                                <div class="knob" id="global-sweep" data-min="0" data-max="100" data-value="0" data-angle="0">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">P. Sweep</div>
@@ -72,28 +72,28 @@
                         <div class="knob-row">
                             <div class="knob-container">
                                 <input class="knob-value" value="0 dB"/>
-                                <div class="knob" id="osc1-volume" min="0" max="1" value="1" angle="0">
+                                <div class="knob" id="osc1-volume" data-min="0" data-max="1" data-value="1" data-angle="0" data-unit="dB">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Volume</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="164.81 Hz"/>
-                                <div class="knob" id="osc1-frequency" min="32.70" max="523.25" value="164.81" angle="0">
+                                <div class="knob" id="osc1-frequency" data-min="32.70" data-max="523.25" data-value="164.81" data-angle="0" data-unit="Hz">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Frequency</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="osc1-distortion" min="0" max="100" value="0" angle="0">
+                                <div class="knob" id="osc1-distortion" data-min="0" data-max="100" data-value="0" data-angle="0" data-unit="%">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Distortion</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="osc1-fm" min="0" max="100" value="0" angle="0">
+                                <div class="knob" id="osc1-fm" data-min="0" data-max="100" data-value="0" data-angle="0" data-unit="%">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">FM Color</div>
@@ -102,28 +102,28 @@
                         <div class="knob-row">
                             <div class="knob-container">
                                 <input class="knob-value" value="0 s"/>
-                                <div class="knob" id="osc1-attack" min="0" max="1" value="0" angle="0">
+                                <div class="knob" id="osc1-attack" data-min="0" data-max="1" data-value="0" data-angle="0" data-unit="s">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Attack</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0.10 s"/>
-                                <div class="knob" id="osc1-decay" min="0" max="1" value="0.1" angle="0">
+                                <div class="knob" id="osc1-decay" data-min="0" data-max="1" data-value="0.1" data-angle="0" data-unit="s">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Decay</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="osc1-sustain" min="0" max="1" value="0" angle="0">
+                                <div class="knob" id="osc1-sustain" data-min="0" data-max="1" data-value="0" data-angle="0" data-unit="%">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Sustain</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0 s"/>
-                                <div class="knob" id="osc1-release" min="0" max="1" value="0" angle="0">
+                                <div class="knob" id="osc1-release" data-min="0" data-max="1" data-value="0" data-angle="0" data-unit="s">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Release</div>
@@ -135,28 +135,28 @@
                         <div class="knob-row">
                             <div class="knob-container">
                                 <input class="knob-value" value="0 dB"/>
-                                <div class="knob" id="noise-volume" min="0" max="1" value="1" angle="0">
+                                <div class="knob" id="noise-volume" data-min="0" data-max="1" data-value="1" data-angle="0" data-unit="dB">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Volume</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0 Hz"/>
-                                <div class="knob" id="noise-highpass" min="0" max="20000" value="0" angle="0">
+                                <div class="knob" id="noise-highpass" data-min="0" data-max="20000" data-value="0" data-angle="0" data-unit="Hz">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">High Pass</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="noise-distortion" min="0" max="100" value="0" angle="0">
+                                <div class="knob" id="noise-distortion" data-min="0" data-max="100" data-value="0" data-angle="0" data-unit="%">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Distortion</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="20000 Hz"/>
-                                <div class="knob" id="noise-lowpass" min="30" max="20000" value="20000" angle="0">
+                                <div class="knob" id="noise-lowpass" data-min="30" data-max="20000" data-value="20000" data-angle="0" data-unit="Hz">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Low Pass</div>
@@ -165,28 +165,28 @@
                         <div class="knob-row">
                             <div class="knob-container">
                                 <input class="knob-value" value="0 s"/>
-                                <div class="knob" id="noise-attack" min="0" max="1" value="0" angle="0">
+                                <div class="knob" id="noise-attack" data-min="0" data-max="1" data-value="0" data-angle="0" data-unit="s">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Attack</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0.14 s"/>
-                                <div class="knob" id="noise-decay" min="0" max="0.5" value="0.1" angle="0">
+                                <div class="knob" id="noise-decay" data-min="0" data-max="0.5" data-value="0.1" data-angle="0" data-unit="s">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Decay</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0%"/>
-                                <div class="knob" id="noise-sustain" min="0" max="1" value="0" angle="0">
+                                <div class="knob" id="noise-sustain" data-min="0" data-max="1" data-value="0" data-angle="0" data-unit="%">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Sustain</div>
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0 s"/>
-                                <div class="knob" id="noise-release" min="0" max="1" value="0" angle="0">
+                                <div class="knob" id="noise-release" data-min="0" data-max="1" data-value="0" data-angle="0" data-unit="s">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Release</div>
