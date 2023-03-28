@@ -91,24 +91,19 @@ function turnKnob(e, knob) {
         let knobVal = (knobRange * (deg/180)) + +knob.dataset.min;
         knob.dataset.value = knobVal;
         knob.dataset.angle = deg;
-
         let knobInput = knob.previousElementSibling;
-        if (knobInput.value.endsWith("Hz")) {
-            knobInput.value = `${knobVal.toFixed(2)} Hz`;
-        } else if (knobInput.value.endsWith("s")) {
-            knobInput.value = `${knobVal.toFixed(2)} s`;
-        } else if (knobInput.value.endsWith("dB")) {
-            if (knob.id.includes("volume") || knob.className.includes("volume")) {
-                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
-            }
-            knobInput.value = `${knobVal.toFixed(2)} dB`;
-        } else if (knobInput.value.endsWith("%")) {
+
+
+        if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
             if (knob.id.includes("sustain")) {
                 knobVal *= 100;
             }
-            knobInput.value = `${knobVal.toFixed(2)}%`;
+            knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
         } else {
-            knobInput.value = knobVal.toFixed(2);
+            if (knob.id.includes("volume") || knob.className.includes("volume")) {
+                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            }
+            knobInput.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
         }
     }
 
@@ -147,23 +142,18 @@ function slideTurnKnob(e, knob) {
     knob.dataset.value = knobVal;
     knob.dataset.angle = deg;
     let knobInput = knob.previousElementSibling;
+
     
-    if (knobInput.value.endsWith("Hz")) {
-        knobInput.value = `${knobVal.toFixed(2)} Hz`;
-    } else if (knobInput.value.endsWith("s")) {
-        knobInput.value = `${knobVal.toFixed(2)} s`;
-    } else if (knobInput.value.endsWith("dB")) {
-        if (knob.id.includes("volume") || knob.className.includes("volume")) {
-            knobVal = 20 * (Math.log(knobVal)/Math.LN10);
-        }
-        knobInput.value = `${knobVal.toFixed(2)} dB`;
-    } else if (knobInput.value.endsWith("%")) {
+    if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
         if (knob.id.includes("sustain")) {
             knobVal *= 100;
         }
-        knobInput.value = `${knobVal.toFixed(2)}%`;
+        knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
     } else {
-        knobInput.value = knobVal.toFixed(2);
+        if (knob.id.includes("volume") || knob.className.includes("volume")) {
+            knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+        }
+        knobInput.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
     }
 
     return deg;
@@ -648,14 +638,24 @@ function updateValueInputs() {
     for (input of valueInputs) {
         let knob = input.nextElementSibling;
         let knobVal = +knob.dataset.value;
+
+        if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
+            if (knob.id.includes("sustain")) {
+                knobVal *= 100;
+            }
+            input.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
+        } else {
+            if (knob.id.includes("volume") || knob.className.includes("volume")) {
+                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            }
+            input.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
+        }
         if (input.value.endsWith("Hz")) {
             input.value = `${knobVal.toFixed(2)} Hz`;
         } else if (input.value.endsWith("s")) {
             input.value = `${knobVal.toFixed(2)} s`;
         } else if (input.value.endsWith("dB")) {
-            if (knob.id.includes("volume") || knob.className.includes("volume")) {
-                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
-            }
+            
             input.value = `${knobVal.toFixed(2)} dB`;
         } else if (input.value.endsWith("%")) {
             if (knob.id.includes("sustain")) {
@@ -698,7 +698,7 @@ function handleInputChange(e) {
         knob.dataset.value = +newValue;
         let knobUnit = knob.dataset.unit;
     
-        if (knobUnit === "%") {
+        if (knobUnit === "%" || knobUnit === "") {
             e.target.value = `${e.target.value}${knobUnit}`
         } else {
             e.target.value = `${e.target.value} ${knobUnit}`
@@ -826,11 +826,12 @@ function initializePreset() {
 }
 
 function randomizePreset() {
-    let presetData = {};
     for (knob of knobArray) {
-        let knobRange = +knob.dataset.max - +knob.dataset.min;
-        let knobVal = (Math.random() * knobRange) + +knob.dataset.min;
-        knob.dataset.value = knobVal;
+        if (!knob.className.includes("effect")) {
+            let knobRange = +knob.dataset.max - +knob.dataset.min;
+            let knobVal = (Math.random() * knobRange) + +knob.dataset.min;
+            knob.dataset.value = knobVal;
+        }
     }
     updateValueInputs();
     updateKnobs(knobArray);
