@@ -36,9 +36,6 @@ const cornerOptions = document.getElementsByClassName("corner-option")
 
 const playButton = document.querySelector(".play");
 
-const canvas = document.querySelector(".visualizer");
-
-
 let prevX = 0;
 let prevY = 0;
 
@@ -52,7 +49,6 @@ let initialPreset = {};
 let defaultPresets = {};
 
 const audioCtx = new AudioContext();
-const canvasCtx = canvas.getContext("2d");
 
 let osc = audioCtx.createOscillator();
 
@@ -93,22 +89,24 @@ function turnKnob(e, knob) {
     if (deg >= 0) {
         let knobRange = +knob.getAttribute("max") - +knob.getAttribute("min");
         let knobVal = (knobRange * (deg/180));
-        knob.setAttribute("value", knobVal);
+        knob.setAttribute("value", knobVal) + +knob.getAttribute("min");
         knob.setAttribute("angle", deg)
-        let valueVisualizer = knob.previousElementSibling;
+        let knobInput = knob.previousElementSibling;
         
-        if (valueVisualizer.value.endsWith("Hz")) {
-            valueVisualizer.value = `${knobVal.toFixed(2)} Hz`;
-        } else if (valueVisualizer.value.endsWith("s")) {
-            valueVisualizer.value = `${knobVal.toFixed(2)} s`;
-        } else if (valueVisualizer.value.endsWith("dB")) {
+        if (knobInput.value.endsWith("Hz")) {
+            knobInput.value = `${knobVal.toFixed(2)} Hz`;
+        } else if (knobInput.value.endsWith("s")) {
+            knobInput.value = `${knobVal.toFixed(2)} s`;
+        } else if (knobInput.value.endsWith("dB") && knob.id.includes("volume")) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
-            valueVisualizer.value = `${knobVal.toFixed(2)} dB`;
-        } else if (valueVisualizer.value.endsWith("%")) {
+            knobInput.value = `${knobVal.toFixed(2)} dB`;
+        } else if (knobInput.value.endsWith("dB")) {
+            knobInput.value = `${knobVal.toFixed(2)} dB`;
+        } else if (knobInput.value.endsWith("%")) {
             if (knob.id.includes("sustain")) {
                 knobVal *= 100;
             }
-            valueVisualizer.value = `${knobVal.toFixed(2)}%`;
+            knobInput.value = `${knobVal.toFixed(2)}%`;
         }
     }
 
@@ -146,20 +144,22 @@ function slideTurnKnob(e, knob) {
     let knobVal = (knobRange * (deg/180)) + +knob.getAttribute("min");
     knob.setAttribute("value", knobVal);
     knob.setAttribute("angle", deg);
-    let valueVisualizer = knob.previousElementSibling;
+    let knobInput = knob.previousElementSibling;
     
-    if (valueVisualizer.value.endsWith("Hz")) {
-        valueVisualizer.value = `${knobVal.toFixed(2)} Hz`;
-    } else if (valueVisualizer.value.endsWith("s")) {
-        valueVisualizer.value = `${knobVal.toFixed(2)} s`;
-    } else if (valueVisualizer.value.endsWith("dB")) {
+    if (knobInput.value.endsWith("Hz")) {
+        knobInput.value = `${knobVal.toFixed(2)} Hz`;
+    } else if (knobInput.value.endsWith("s")) {
+        knobInput.value = `${knobVal.toFixed(2)} s`;
+    } else if (knobInput.value.endsWith("dB") && knob.id.includes("volume")) {
         knobVal = 20 * (Math.log(knobVal)/Math.LN10);
-        valueVisualizer.value = `${knobVal.toFixed(2)} dB`;
-    } else if (valueVisualizer.value.endsWith("%")) {
+        knobInput.value = `${knobVal.toFixed(2)} dB`;
+    } else if (knobInput.value.endsWith("dB")) {
+        knobInput.value = `${knobVal.toFixed(2)} dB`;
+    } else if (knobInput.value.endsWith("%")) {
         if (knob.id.includes("sustain")) {
             knobVal *= 100;
         }
-        valueVisualizer.value = `${knobVal.toFixed(2)}%`;
+        knobInput.value = `${knobVal.toFixed(2)}%`;
     }
 
     return deg;
@@ -217,9 +217,11 @@ function createDistortionCurve(amount) {
     return curve;
 }
 
-function createWaveform(source) {
-    WIDTH = canvas.width;
-    HEIGHT = canvas.height;
+function createWaveform(source, visualizer) {
+    WIDTH = visualizer.width;
+    HEIGHT = visualizer.height;
+
+    const canvasCtx = visualizer.getContext("2d");
 
     const analyser = audioCtx.createAnalyser();
     source.connect(analyser);
@@ -279,6 +281,169 @@ function createNoise(duration) {
     return noise;
 }
 
+function createEmptyCard() {
+    let cardOptions = ["Compressor"];
+    let newCard = document.createElement("div");
+    newCard.classList.add("card");
+    newCard.classList.add("effect");
+    newCard.id = "empty-card"
+    let title = document.createElement("h2");
+    title.innerHTML = "Pick a new card:";
+    newCard.appendChild(title);
+
+    let optionContainer = document.createElement("div");
+    optionContainer.classList.add("option-container");
+    newCard.appendChild(optionContainer);
+    for (card of cardOptions) {
+        let option = document.createElement("p");
+        option.innerHTML = card;
+        option.onclick = () => createEffectCard(card);
+        optionContainer.appendChild(option);
+    }
+    document.querySelector(".card-container").appendChild(newCard);
+}
+
+function createEffectCard(type) {
+    let emptyCard = document.querySelector("#empty-card");
+    emptyCard.innerHTML = "";
+
+    //General Effect Card Layout
+    emptyCard.id = `${type.toLowerCase()}-card`;
+
+    let top = document.createElement("div");
+    top.classList.add("top");
+
+    let topBar = document.createElement("div");
+    topBar.classList.add("top-bar");
+
+    let muteButton = document.createElement("div");
+    muteButton.classList.add("mute-button");
+    muteButton.setAttribute("muted", false);
+    let muteImg = document.createElement("img");
+    muteImg.setAttribute("src", "images/unmuted.svg");
+    muteImg.setAttribute("width", 15);
+    muteImg.setAttribute("alt", "A crossed out speaker. Click to mute the effects of this card");
+
+    muteButton.appendChild(muteImg);
+    
+    let closeButton = document.createElement("div");
+    closeButton.classList.add("close-button");
+    let closeImg = document.createElement("img");
+    closeImg.setAttribute("src", "images/close.svg");
+    closeImg.setAttribute("width", 15);
+    closeImg.setAttribute("alt", "An X. Click to close this card");
+
+    closeButton.appendChild(closeImg);
+
+    topBar.appendChild(muteButton);
+    topBar.appendChild(closeButton);
+
+    let visualizer = document.querySelector(".visualizer").cloneNode();
+
+    top.appendChild(topBar);
+    top.appendChild(visualizer);
+    emptyCard.appendChild(top);
+
+    closeButton.onclick = () => emptyCard.remove();
+    muteButton.onclick = () => {
+        let muted = muteButton.getAttribute("muted") === "true";
+        muteButton.setAttribute("muted", !muted);
+        if (muted) {
+            muteImg.setAttribute("src", "images/unmuted.svg");
+            muteImg.setAttribute("alt", "A speaker. Click to mute the effects of this card");
+        } else {
+            muteImg.setAttribute("src", "images/muted.svg");
+            muteImg.setAttribute("alt", "A crossed out speaker. Click to unmute the effects of this card");
+        }
+    };
+
+    switch(type) {
+        case "Compressor":
+            let knobs = document.createElement("div");
+            knobs.classList.add("knobs");
+
+            knobs.innerHTML = type;
+
+            let knobRow1 = document.createElement("div");
+            knobRow1.classList.add("knob-row");
+            let knobRow2 = document.createElement("div");
+            knobRow2.classList.add("knob-row");
+
+            let volume = new createKnob("comp-volume", 1, 0, 1, " dB");
+            let threshhold = new createKnob("comp-threshold", 0, -100, 0, " dB");
+            let knee = new createKnob("comp-knee", 0, 0, 40, " dB");
+            let ratio = new createKnob("comp-ratio", 1, 1, 20, " dB");
+            let attack = new createKnob("comp-attack", 0, 0, 1, " s");
+            let release = new createKnob("comp-release", 0, 0, 1, " s");
+            
+            knobRow1.appendChild(volume.container);
+            knobRow1.appendChild(threshhold.container);
+            knobRow1.appendChild(knee.container);
+            knobRow1.appendChild(ratio.container);
+
+            knobRow2.appendChild(attack.container);
+            knobRow2.appendChild(release.container);
+
+            knobs.appendChild(knobRow1);
+            knobs.appendChild(knobRow2);
+
+            emptyCard.appendChild(knobs);
+
+            updateKnobs(emptyCard.getElementsByClassName("knob"));
+            updateValueInputs();
+    }
+}
+
+function createKnob(name, value, min, max, unit) {
+    let knobContainer = document.createElement("div");
+    knobContainer.classList.add("knob-container");
+
+    let knobInput = document.querySelector(".knob-value").cloneNode();
+    knobInput.setAttribute("value", `${value}${unit}`);
+    knobInput.value = `${value}${unit}`;
+
+    let knob = document.querySelector(".knob").cloneNode(true);
+    knob.removeAttribute("id");
+    knob.classList.add(name);
+    knob.setAttribute("value", value);
+    knob.setAttribute("min", min);
+    knob.setAttribute("max", max);
+    knob.setAttribute("angle", 0);
+
+    let knobLabel = document.createElement("div");
+    knobLabel.classList.add("label");
+    let splitName = name.split("-");
+    knobLabel.innerHTML = splitName[1].charAt(0).toUpperCase() + splitName[1].slice(1);
+
+    knobContainer.appendChild(knobInput);
+    knobContainer.appendChild(knob);
+    knobContainer.appendChild(knobLabel);
+
+    let knobMarker;
+
+    for (child of knob.childNodes) {
+        if (child.innerHTML !== undefined) {
+            knobMarker = child;
+            break;
+        }
+    }
+
+    knob.addEventListener("mousedown", () => {startSlideRotation(knob)});
+    knobMarker.addEventListener("mousedown", () => {startRotation(knob)});
+
+    knobInput.addEventListener("change", handleInputChange);
+    knobInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") {
+            handleInputChange(e);
+            knobInput.blur();
+        }
+    });
+    
+    this.container = knobContainer;
+    this.input = knobInput;
+    this.knob = knob;
+}
+
 function playOsc1(time) {
     const osc1Gain = +osc1VolKnob.getAttribute("value");
     const osc1Freq = +osc1FreqKnob.getAttribute("value");
@@ -294,7 +459,6 @@ function playOsc1(time) {
 
     osc = audioCtx.createOscillator();
     osc.frequency.value = osc1Freq;
-    osc.type ="triangle"
 
     let modulator = audioCtx.createOscillator();
     modulator.frequency.value = 500;
@@ -330,9 +494,6 @@ function playOsc1(time) {
         osc.connect(osc1Env).connect(globalEnv);
     }
     
-
-    createWaveform(globalEnv);
-
     modulator.start(time);
     osc.start(time);
     osc1Playing = true;
@@ -415,21 +576,56 @@ function playAll(time) {
     const globalGain = +globalVolKnob.getAttribute("value");
     const globalDistAmount = +globalDistKnob.getAttribute("value");
 
+    const canvas = document.querySelector(".visualizer");
+
+    const compressorCard = document.querySelector("#compressor-card");
+
+
     const globalDistortionNode = audioCtx.createWaveShaper();
     globalDistortionNode.curve = createDistortionCurve(globalDistAmount);
     globalDistortionNode.oversample = "2x";
     
     globalEnv.gain.value = globalGain;
 
+    lastNode = globalEnv;
     globalEnv.disconnect();
     if (globalDistAmount > 0) {
-        globalEnv.connect(globalDistortionNode);
-        globalDistortionNode.connect(mediaStreamNode);
-        globalDistortionNode.connect(audioCtx.destination);
-    } else {
-        globalEnv.connect(mediaStreamNode);
-        globalEnv.connect(audioCtx.destination);
+        lastNode.connect(globalDistortionNode);
+        lastNode = globalDistortionNode;
     }
+    //Main card waveform.
+    createWaveform(globalEnv, canvas);
+
+    let effectCards = document.getElementsByClassName("effect");
+
+    for (card of effectCards) {
+        let muteButton = card.querySelector(".mute-button");
+        if (muteButton !== null) {
+            if (muteButton.getAttribute("muted") !== "true") {
+                if (card.id.includes("compressor")) {
+                    const visualizer = card.querySelector(".visualizer");
+                    const compressor = audioCtx.createDynamicsCompressor();
+                    const compressorEnv = audioCtx.createGain();
+        
+                    compressorEnv.gain.value = +card.querySelector(".comp-volume").getAttribute("value");
+                    compressor.threshold.setValueAtTime(+card.querySelector(".comp-threshold").getAttribute("value"), time);
+                    compressor.knee.setValueAtTime(+card.querySelector(".comp-knee").getAttribute("value"), time);
+                    compressor.ratio.setValueAtTime(+card.querySelector(".comp-ratio").getAttribute("value"), time);
+                    compressor.attack.setValueAtTime(+card.querySelector(".comp-attack").getAttribute("value"), time);
+                    compressor.release.setValueAtTime(+card.querySelector(".comp-release").getAttribute("value"), time);
+        
+                    lastNode.connect(compressor);
+                    compressor.connect(compressorEnv);
+                    lastNode = compressorEnv;
+        
+                    createWaveform(lastNode, visualizer);
+                }
+            }
+        }
+    }
+
+    lastNode.connect(mediaStreamNode);
+    lastNode.connect(audioCtx.destination); 
 
     playOsc1(time);
     playNoise(time);
@@ -437,7 +633,7 @@ function playAll(time) {
 
 function updateKnobs(kArray) {
     for (let i = 0; i < kArray.length; i++) {    
-        const initialValue = +kArray[i].getAttribute("value")
+        const initialValue = +kArray[i].getAttribute("value") - +kArray[i].getAttribute("min");
         const knobRange = +kArray[i].getAttribute("max") - +kArray[i].getAttribute("min");
         const deg = (initialValue / knobRange) * 180;
         const result = Math.floor(deg - 90);
@@ -454,8 +650,10 @@ function updateValueInputs() {
             input.value = `${knobVal.toFixed(2)} Hz`;
         } else if (input.value.endsWith("s")) {
             input.value = `${knobVal.toFixed(2)} s`;
-        } else if (input.value.endsWith("dB")) {
+        } else if (input.value.endsWith("dB") && knob.id.includes("volume")) {
             knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            input.value = `${knobVal.toFixed(2)} dB`;
+        } else if (input.value.endsWith("dB")) {
             input.value = `${knobVal.toFixed(2)} dB`;
         } else if (input.value.endsWith("%")) {
             if (knob.id.includes("sustain")) {

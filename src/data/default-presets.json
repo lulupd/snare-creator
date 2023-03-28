@@ -4,7 +4,7 @@
         "global-distortion" : 0,
         "global-sweep" : 5,
 
-        "osc1-volume" : 0.5,
+        "osc1-volume" : 0.7,
         "osc1-frequency" : 170,
         "osc1-distortion" : 0,
         "osc1-fm" : 0,
@@ -19,7 +19,7 @@
         "noise-lowpass" : 10000,
         "noise-attack" : 0.01,
         "noise-decay" : 0.1,
-        "noise-sustain" : 0.1,
+        "noise-sustain" : 0.05,
         "noise-release" : 0.1
     }
 }
