@@ -43,6 +43,10 @@ body {
     box-shadow: 0px 0px 25px black;
 }
 
+#delay-card {
+    color: white;
+    background-color: #700074;
+}
 .plus-container {
     margin-right: -300px;
     margin-left: 150px;
@@ -58,14 +62,15 @@ body {
 }
 
 .option-container {
-    height: 100%;
     display: flex;
     flex-wrap: wrap;
-    cursor: pointer;
+    justify-content: space-between;
 }
 
 .option-container p {
     width: fit-content;
+    cursor: pointer;
+    margin: 10px;
 }
 
 .card .top {
@@ -82,7 +87,7 @@ body {
     justify-content: center;
 }
 
-#compressor-card .top-bar {
+.effect .top-bar {
     gap: 10px;
 }
 
@@ -215,7 +220,8 @@ select {
     height: 50px;
     border-radius: 50px;
     border-style: solid;
-    box-shadow: inset 0px 0px 5px;
+    border-color: black;
+    box-shadow: inset 0px 0px 5px black;
 }
 
 .knob-marker {

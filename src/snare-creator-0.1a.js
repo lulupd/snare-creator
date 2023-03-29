@@ -39,9 +39,6 @@ const playButton = document.querySelector(".play");
 let prevX = 0;
 let prevY = 0;
 
-let osc1Playing = false;
-let noisePlaying = false;
-
 let db;
 
 let initialPreset = {};
@@ -51,6 +48,8 @@ let defaultPresets = {};
 const audioCtx = new AudioContext();
 
 let osc = audioCtx.createOscillator();
+let noiseNode = createNoise(1);
+let emptySource = createNoise(1);
 
 const mediaStreamNode = audioCtx.createMediaStreamDestination();
 const mediaRecorder = new MediaRecorder(mediaStreamNode.stream);
@@ -95,7 +94,7 @@ function turnKnob(e, knob) {
 
 
         if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
-            if (knob.id.includes("sustain")) {
+            if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
                 knobVal *= 100;
             }
             knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
@@ -145,7 +144,7 @@ function slideTurnKnob(e, knob) {
 
     
     if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
-        if (knob.id.includes("sustain")) {
+        if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
             knobVal *= 100;
         }
         knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
@@ -193,6 +192,18 @@ function startSlideRotation(knob) {
     });
 }
 
+function calculateRepetitions(gain, feedback, repetitions = 1) {
+    gain *= feedback;
+    if (gain < 0.005) {
+        return repetitions;
+    } else if (feedback === 1) {
+        return 0;
+    } else {
+        repetitions += 1;
+        return calculateRepetitions(gain, feedback, repetitions);
+    }
+}
+
 function createDistortionCurve(amount) {
     let k = amount;
     let n_samples = audioCtx.sampleRate;
@@ -221,6 +232,7 @@ function createWaveform(source, visualizer) {
     source.connect(analyser);
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+    const volumeData = new Float32Array(bufferLength);
 
     canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
@@ -276,13 +288,13 @@ function createNoise(duration) {
 }
 
 function createEmptyCard() {
-    let cardOptions = ["Compressor"];
+    let cardOptions = ["Compressor", "Delay"];
     let newCard = document.createElement("div");
     newCard.classList.add("card");
     newCard.classList.add("effect");
     newCard.id = "empty-card"
     let title = document.createElement("h2");
-    title.innerHTML = "Pick a new card:";
+    title.innerText = "Pick a new card:";
     newCard.appendChild(title);
 
     let optionContainer = document.createElement("div");
@@ -290,8 +302,8 @@ function createEmptyCard() {
     newCard.appendChild(optionContainer);
     for (card of cardOptions) {
         let option = document.createElement("p");
-        option.innerHTML = card;
-        option.onclick = () => createEffectCard(card);
+        option.innerText = card;
+        option.onclick = () => createEffectCard(option.innerText);
         optionContainer.appendChild(option);
     }
     document.querySelector(".card-container").appendChild(newCard);
@@ -354,12 +366,11 @@ function createEffectCard(type) {
         }
     };
 
-    switch(type) {
-        case "Compressor":
+    if (type === "Compressor") {
             let knobs = document.createElement("div");
             knobs.classList.add("knobs");
 
-            knobs.innerHTML = type;
+            knobs.innerText = type;
 
             let knobRow1 = document.createElement("div");
             knobRow1.classList.add("knob-row");
@@ -388,6 +399,35 @@ function createEffectCard(type) {
 
             updateKnobs(emptyCard.getElementsByClassName("knob"));
             updateValueInputs();
+    } else if (type === "Delay") {
+        let knobs = document.createElement("div");
+            knobs.classList.add("knobs");
+
+            knobs.innerText = type;
+
+            let knobRow1 = document.createElement("div");
+            knobRow1.classList.add("knob-row");
+            let knobRow2 = document.createElement("div");
+            knobRow2.classList.add("knob-row");
+
+            let feedback = new createKnob("delay-feedback", 0, 0, 1, "%");
+            let delayTime = new createKnob("delay-time", 0, 0, 1, "s");
+            let bandpassFreq = new createKnob("delay-frequency", 10000, 30, 20000, "Hz") ;
+            let bandpassQ = new createKnob("delay-q", 0.0001, 0.0001, 1);
+            
+            knobRow1.appendChild(feedback.container);
+            knobRow1.appendChild(delayTime.container);
+
+            knobRow2.appendChild(bandpassFreq.container);
+            knobRow2.appendChild(bandpassQ.container);
+
+            knobs.appendChild(knobRow1);
+            knobs.appendChild(knobRow2);
+
+            emptyCard.appendChild(knobs);
+
+            updateKnobs(emptyCard.getElementsByClassName("knob"));
+            updateValueInputs();
     }
 }
 
@@ -396,7 +436,11 @@ function createKnob(name, value, min, max, unit = "") {
     knobContainer.classList.add("knob-container");
 
     let knobInput = document.querySelector(".knob-value").cloneNode();
-    knobInput.value = `${value}${unit}`;
+    if (unit === "%" || unit === "") {
+        knobInput.value = `${value}${unit}`;
+    } else {
+        knobInput.value = `${value} ${unit}`;
+    }
 
     let knob = document.querySelector(".knob").cloneNode(true);
     knob.removeAttribute("id");
@@ -411,7 +455,7 @@ function createKnob(name, value, min, max, unit = "") {
     let knobLabel = document.createElement("div");
     knobLabel.classList.add("label");
     let splitName = name.split("-");
-    knobLabel.innerHTML = splitName[1].charAt(0).toUpperCase() + splitName[1].slice(1);
+    knobLabel.innerText = splitName[1].charAt(0).toUpperCase() + splitName[1].slice(1);
 
     knobContainer.appendChild(knobInput);
     knobContainer.appendChild(knob);
@@ -485,15 +529,10 @@ function playOsc1(time) {
     } else {
         osc.connect(osc1Env).connect(globalEnv);
     }
-    
+
     modulator.start(time);
     osc.start(time);
     osc1Playing = true;
-    osc.addEventListener("ended", () => {
-        osc1Playing = false;
-        handleSoundEnd()
-    }); 
-
     osc.stop(time + attackTime + decayTime + releaseTime);
 }
 
@@ -510,7 +549,7 @@ function playNoise(time) {
 
     const globalSweepAmount = +globalSweepKnob.dataset.value;
     if (attackTime + decayTime + releaseTime > 0) {
-        let noise = createNoise(attackTime + decayTime + releaseTime);
+        noiseNode = createNoise(attackTime + decayTime + releaseTime);
 
         const noiseEnv = audioCtx.createGain();
 
@@ -538,10 +577,10 @@ function playNoise(time) {
         }
         noiseEnv.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
-        noise.detune.setValueAtTime(globalSweepAmount, time);
-        noise.detune.linearRampToValueAtTime(0, time + (decayTime / 4))
+        noiseNode.detune.setValueAtTime(globalSweepAmount, time);
+        noiseNode.detune.linearRampToValueAtTime(0, time + (decayTime / 4))
 
-        noise.connect(highpass);
+        noiseNode.connect(highpass);
         highpass.disconnect();
 
         if (distAmount > 0) {
@@ -553,14 +592,9 @@ function playNoise(time) {
             lowpass.connect(noiseEnv).connect(globalEnv);
         }
     
-
-        noise.start()
-        noisePlaying = true;
-        noise.addEventListener("ended", () => {
-            noisePlaying = false;
-            handleSoundEnd()
-        }); 
-        noise.stop(time + attackTime + decayTime + releaseTime);
+        noiseNode.start()
+        noisePlaying = true; 
+        noiseNode.stop(time + attackTime + decayTime + releaseTime);
     }
 }
 
@@ -570,16 +604,15 @@ function playAll(time) {
 
     const canvas = document.querySelector(".visualizer");
 
-    const compressorCard = document.querySelector("#compressor-card");
-
-
     const globalDistortionNode = audioCtx.createWaveShaper();
     globalDistortionNode.curve = createDistortionCurve(globalDistAmount);
     globalDistortionNode.oversample = "2x";
     
     globalEnv.gain.value = globalGain;
 
-    lastNode = globalEnv;
+    let lastNode = globalEnv;
+    let lastGain = globalEnv;
+
     globalEnv.disconnect();
     if (globalDistAmount > 0) {
         lastNode.connect(globalDistortionNode);
@@ -588,6 +621,7 @@ function playAll(time) {
     //Main card waveform.
     createWaveform(globalEnv, canvas);
 
+    let delayTotalTime = 0;
     let effectCards = document.getElementsByClassName("effect");
 
     for (card of effectCards) {
@@ -608,8 +642,44 @@ function playAll(time) {
         
                     lastNode.connect(compressor);
                     compressor.connect(compressorEnv);
+
                     lastNode = compressorEnv;
-        
+                    lastGain = compressorEnv;
+                    createWaveform(lastNode, visualizer);
+
+                } else if (card.id.includes("delay")) {
+                    const visualizer = card.querySelector(".visualizer");
+                    const delay = audioCtx.createDelay();
+                    const feedbackGain = audioCtx.createGain();
+                    const bandpass = new BiquadFilterNode(audioCtx, {
+                        type: "bandpass",
+                        
+                    });
+
+                    feedbackGain.gain.value = +card.querySelector(".delay-feedback").dataset.value;
+                    delay.delayTime.value = +card.querySelector(".delay-time").dataset.value;
+                    bandpass.frequency.value = +card.querySelector(".delay-frequency").dataset.value;
+                    bandpass.Q.value = +card.querySelector(".delay-q").dataset.value;
+
+                    let delayTime = delay.delayTime.value;
+
+                    if (feedbackGain.gain.value === 1) {
+                        feedbackGain.gain.value -= 0.1;
+                        if (delay.delayTime.value === 0) {
+                            delayTime = 0.005;
+                        }
+                    }
+                    
+                    delayTotalTime = delayTime * calculateRepetitions(lastGain.gain.value, feedbackGain.gain.value);
+                    lastNode.connect(mediaStreamNode);
+                    lastNode.connect(audioCtx.destination);
+
+                    lastNode.connect(delay);
+                    delay.connect(feedbackGain);
+                    feedbackGain.connect(bandpass);
+                    bandpass.connect(delay);
+
+                    lastNode = delay;
                     createWaveform(lastNode, visualizer);
                 }
             }
@@ -619,8 +689,29 @@ function playAll(time) {
     lastNode.connect(mediaStreamNode);
     lastNode.connect(audioCtx.destination); 
 
+    let attack = +osc1AttackKnob.dataset.value > +noiseAttackKnob.dataset.value ?
+        +osc1AttackKnob.dataset.value :
+        +noiseAttackKnob.dataset.value;
+    let decay = +osc1DecayKnob.dataset.value > +noiseDecayKnob.dataset.value ?
+        +osc1DecayKnob.dataset.value :
+        +noiseDecayKnob.dataset.value;
+    let release = +osc1ReleaseKnob.dataset.value > +noiseReleaseKnob.dataset.value ?
+        +osc1ReleaseKnob.dataset.value :
+        +noiseReleaseKnob.dataset.value;    
+
+    emptySource = createNoise(attack + decay + release + delayTotalTime + 0.1);
+    
+
+    emptySource.addEventListener("ended", () => {
+        handleSoundEnd()
+        lastNode.disconnect();
+    });
+
     playOsc1(time);
     playNoise(time);
+
+    emptySource.start(time);
+    emptySource.stop(time + attack + decay + release + delayTotalTime + 0.1);
 }
 
 function updateKnobs(kArray) {
@@ -640,7 +731,7 @@ function updateValueInputs() {
         let knobVal = +knob.dataset.value;
 
         if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
-            if (knob.id.includes("sustain")) {
+            if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
                 knobVal *= 100;
             }
             input.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
@@ -669,7 +760,7 @@ function handleInputChange(e) {
     }
     
 
-    if (knob.id.includes("sustain") || knob.className.includes("sustain")) {
+    if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
         newValue = +newValue / 100;
     } else if (knob.id.includes("volume") || knob.className.includes("volume")) {
         newValue = Math.pow(10, (+newValue / 20));
@@ -695,13 +786,11 @@ function handleInputChange(e) {
 }
 
 function handleSoundEnd() {
-    if (osc1Playing === false && noisePlaying === false) {
-        if (mediaRecorder.state === "recording") {
-            mediaRecorder.stop();
-        }
-        playButton.dataset.playing = false;
-        playButton.innerHTML = "Play";
+    if (mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
     }
+    playButton.dataset.playing = false;
+    playButton.innerText = "Play";
 }
 
 function handleCornerMenuClick(e) {
@@ -718,6 +807,28 @@ function handleCornerMenuClick(e) {
     }
     updateKnobs(knobArray);
     updateValueInputs();
+}
+
+function handlePlayButton() {
+    if (playButton.dataset.playing === "false") {
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+        }
+        mediaRecorder.start();
+        let currentTime = audioCtx.currentTime;
+        playButton.dataset.playing = true;
+        playButton.innerText = "Stop";
+        playAll(currentTime);
+    } else {
+        osc.stop();
+        noiseNode.stop();
+        emptySource.stop();
+        if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+        }
+        playButton.dataset.playing = false;
+        playButton.innerText = "Play";
+    }
 }
 
 function openCornerMenu() {
@@ -850,26 +961,9 @@ function makeDefaultPresetOptions() {
     }
 }
 
-playButton.onclick = () => {
-    if (playButton.dataset.playing === "false") {
-        if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
-        mediaRecorder.start();
-        let currentTime = audioCtx.currentTime;
-        playAll(currentTime);
-        playButton.dataset.playing = true;
-        playButton.innerText = "Stop";
-    } else {
-        osc.stop();
-        noise.stop();
-        if (mediaRecorder.state === "recording") {
-            mediaRecorder.stop();
-        }
-        playButton.dataset.playing = false;
-        playButton.innerText = "Play";
-    }
-};
+playButton.addEventListener("click", handlePlayButton);
+
+document.querySelector(".stop").onclick = () => snarePlaying = false;
 
 mediaRecorder.ondataavailable = (e) => {
     saveChunks = [];
