@@ -93,7 +93,8 @@ body {
     justify-content: center;
 }
 
-.effect .top-bar {
+.effect .top-bar,
+#empty-card .top-bar {
     gap: 10px;
 }
 

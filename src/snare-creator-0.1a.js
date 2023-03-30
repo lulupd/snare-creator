@@ -294,6 +294,70 @@ function createNoise(duration) {
     return noise;
 }
 
+function createCompressor(time) {
+    const compVolume = +card.querySelector(".comp-volume").dataset.value;
+    const threshold = +card.querySelector(".comp-threshold").dataset.value;
+    const knee = +card.querySelector(".comp-knee").dataset.value;
+    const ratio = +card.querySelector(".comp-ratio").dataset.value;
+    const attack = +card.querySelector(".comp-attack").dataset.value;
+    const release = +card.querySelector(".comp-release").dataset.value;
+
+    const compressor = audioCtx.createDynamicsCompressor();
+    const compressorEnv = audioCtx.createGain();
+
+    compressorEnv.gain.value = compVolume;
+    compressor.threshold.setValueAtTime(threshold, time);
+    compressor.knee.setValueAtTime(knee, time);
+    compressor.ratio.setValueAtTime(ratio, time);
+    compressor.attack.setValueAtTime(attack, time);
+    compressor.release.setValueAtTime(release, time);
+
+    compressor.connect(compressorEnv);
+
+    this.input = compressor;
+    this.output = compressorEnv;
+}
+
+function createDelay(lastGain) {
+    const feedbackVolume = +card.querySelector(".delay-feedback").dataset.value;
+    let delayTime = +card.querySelector(".delay-time").dataset.value;
+    const bandpassFreq = +card.querySelector(".delay-frequency").dataset.value;
+    const bandpassQ = +card.querySelector(".delay-q").dataset.value;
+    
+    this.input = audioCtx.createGain();
+    const delay = audioCtx.createDelay();
+    const feedbackGain = audioCtx.createGain();
+    const bandpass = new BiquadFilterNode(audioCtx, {
+        type: "bandpass",
+        
+    });
+
+    feedbackGain.gain.value = feedbackVolume;
+    delay.delayTime.value = delayTime;
+    bandpass.frequency.value = bandpassFreq;
+    bandpass.Q.value = bandpassQ;
+
+    //Prevents infinite feedback loop while still allowing for metallic sounds.
+    if (feedbackGain.gain.value === 1) {
+        feedbackGain.gain.value -= 0.05;
+        if (delay.delayTime.value === 0) {
+            delayTime = 0.001;
+        }
+    }
+
+    this.totalTime = delayTime * calculateRepetitions(lastGain.gain.value, feedbackGain.gain.value);
+    
+    this.input.connect(mediaStreamNode);
+    this.input.connect(audioCtx.destination);
+
+    this.input.connect(delay);
+    delay.connect(feedbackGain);
+    feedbackGain.connect(bandpass);
+    bandpass.connect(delay);
+
+    this.output = delay;
+}
+
 function createComb(delayTime, frequency, gainValue) {
     this.delay = audioCtx.createDelay();
     this.lowpass = audioCtx.createBiquadFilter();
@@ -344,12 +408,102 @@ function createFreeverb(frequency, gainValue) {
     this.output = this.allpasses[3];
 }
 
+function createReverb(time) {
+    const highpassFreq = +document.querySelector(".reverb-highpass").dataset.value;
+    const lowpassFreq = +document.querySelector(".reverb-lowpass").dataset.value;
+    const dampeningFreq = +document.querySelector(".reverb-dampening").dataset.value;
+    let roomSize = 1 - +document.querySelector(".reverb-room-size").dataset.value;
+    const preDelayTime = +document.querySelector(".reverb-predelay").dataset.value;
+    const decayTime = +document.querySelector(".reverb-decay").dataset.value;
+    const wetAmount = +document.querySelector(".reverb-wet").dataset.value;
+    const diffuseVolume = +document.querySelector(".reverb-diffuse-volume").dataset.value;
+    const reflectionVolume = +document.querySelector(".reverb-reflection-volume").dataset.value;
+    
+    this.input = audioCtx.createGain();
+    this.output = audioCtx.createGain();
+    const reverbIR = audioCtx.createConvolver();
+    const reverbNoise = audioCtx.createConvolver();
+    const freeverb = new createFreeverb(dampeningFreq, roomSize);
+    const freeverbGain = audioCtx.createGain();
+    const noiseGain = audioCtx.createGain();
+    const wet = audioCtx.createGain();
+    const dry = audioCtx.createGain();
+    const preDelay = audioCtx.createDelay();
+    const diffuseGain = audioCtx.createGain();
+    const reflectionGain = audioCtx.createGain();
+    const highpass = new BiquadFilterNode(audioCtx, {
+        type: "highpass",
+        frequency: highpassFreq,
+    });
+    const lowpass = new BiquadFilterNode(audioCtx, {
+        type: "lowpass",
+        frequency: lowpassFreq,
+    });
+
+    this.totalTime = preDelayTime + decayTime;
+
+    const tailNoise = createNoise(decayTime + 0.1);
+    reverbIR.buffer = impulseResponse;
+    reverbNoise.buffer = tailNoise.buffer;
+
+    freeverbGain.gain.setValueAtTime( 1, time + preDelayTime);
+    freeverbGain.gain.linearRampToValueAtTime(0, time + this.totalTime + 0.1);
+
+    noiseGain.gain.setValueAtTime( 1, time + preDelayTime);
+    noiseGain.gain.linearRampToValueAtTime(0, time + this.totalTime + 0.1);
+
+    wet.gain.value = wetAmount;
+    dry.gain.value = 1 - wetAmount;
+
+    preDelay.delayTime.value = preDelayTime;
+
+    diffuseGain.gain.value = diffuseVolume;
+    reflectionGain.gain.value = reflectionVolume;
+
+    this.input.connect(dry);
+    dry.connect(this.output);
+
+    this.input.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(preDelay);
+    preDelay.connect(reverbIR);
+    preDelay.connect(reverbNoise);
+    preDelay.connect(freeverb.input);
+    reverbIR.connect(diffuseGain);
+    reverbNoise.connect(noiseGain);
+    noiseGain.connect(diffuseGain);
+    freeverb.output.connect(freeverbGain);
+    freeverbGain.connect(reflectionGain);
+    reflectionGain.connect(wet);
+    diffuseGain.connect(wet);
+    wet.connect(this.output);
+}
+
 function createEmptyCard() {
     let cardOptions = ["Compressor", "Delay", "Reverb"];
     let newCard = document.createElement("div");
     newCard.classList.add("card");
     newCard.classList.add("effect");
     newCard.id = "empty-card"
+
+    let topBar = document.createElement("div");
+    topBar.classList.add("top-bar");
+    
+    let closeButton = document.createElement("div");
+    closeButton.classList.add("close-button");
+
+    let closeImg = document.createElement("img");
+    closeImg.setAttribute("src", "images/close.svg");
+    closeImg.setAttribute("width", 15);
+    closeImg.setAttribute("alt", "An X. Click to close this card");
+
+    closeButton.appendChild(closeImg);
+
+    closeButton.addEventListener("click", () => newCard.remove());
+
+    topBar.appendChild(closeButton);
+    newCard.appendChild(topBar);
+
     let title = document.createElement("h2");
     title.innerText = "Pick a new card:";
     newCard.appendChild(title);
@@ -457,7 +611,7 @@ function createEffectCard(type) {
             updateKnobs(emptyCard.getElementsByClassName("knob"));
             updateValueInputs();
     } else if (type === "Delay") {
-        let knobs = document.createElement("div");
+            let knobs = document.createElement("div");
             knobs.classList.add("knobs");
 
             knobs.innerText = type;
@@ -486,7 +640,7 @@ function createEffectCard(type) {
             updateKnobs(emptyCard.getElementsByClassName("knob"));
             updateValueInputs();
     } else if (type === "Reverb") {
-        let knobs = document.createElement("div");
+            let knobs = document.createElement("div");
             knobs.classList.add("knobs");
 
             knobs.innerText = type;
@@ -503,6 +657,8 @@ function createEffectCard(type) {
             let preDelay = new createKnob("reverb-predelay", 0, 0, 0.5, "s");
             let lowpassFreq = new createKnob("reverb-lowpass", 20000, 30, 20000, "Hz");
             let highpassFreq = new createKnob("reverb-highpass", 0, 0, 20000, "Hz");
+            let dampeningFreq = new createKnob("reverb-dampening", 3000, 0, 20000, "Hz");
+            let roomSize = new createKnob("reverb-room-size", 0.5, 0.2, 0.8);
             let reflectionVolume = new createKnob("reverb-reflection-volume",  1, 0, 2, "dB");
             let diffuseVolume = new createKnob("reverb-diffuse-volume", 1, 0, 2, "dB");
             
@@ -512,6 +668,8 @@ function createEffectCard(type) {
 
             knobRow2.appendChild(lowpassFreq.container);
             knobRow2.appendChild(highpassFreq.container);
+            knobRow2.appendChild(dampeningFreq.container);
+            knobRow2.appendChild(roomSize.container);
 
             knobRow3.appendChild(reflectionVolume.container);
             knobRow3.appendChild(diffuseVolume.container);
@@ -736,113 +894,33 @@ function playAll(time) {
             if (muteButton.dataset.muted !== "true") {
                 if (card.id.includes("compressor")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const compressor = audioCtx.createDynamicsCompressor();
-                    const compressorEnv = audioCtx.createGain();
-        
-                    compressorEnv.gain.value = +card.querySelector(".comp-volume").dataset.value;
-                    compressor.threshold.setValueAtTime(+card.querySelector(".comp-threshold").dataset.value, time);
-                    compressor.knee.setValueAtTime(+card.querySelector(".comp-knee").dataset.value, time);
-                    compressor.ratio.setValueAtTime(+card.querySelector(".comp-ratio").dataset.value, time);
-                    compressor.attack.setValueAtTime(+card.querySelector(".comp-attack").dataset.value, time);
-                    compressor.release.setValueAtTime(+card.querySelector(".comp-release").dataset.value, time);
-        
-                    lastNode.connect(compressor);
-                    compressor.connect(compressorEnv);
+                    const compressor = new createCompressor(time);
 
-                    lastNode = compressorEnv;
-                    lastGain = compressorEnv;
+                    lastNode.connect(compressor.input);
+
+                    lastNode = compressor.output;
+                    lastGain = compressor.output;
                     createWaveform(lastNode, visualizer);
 
                 } else if (card.id.includes("delay")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const delay = audioCtx.createDelay();
-                    const feedbackGain = audioCtx.createGain();
-                    const bandpass = new BiquadFilterNode(audioCtx, {
-                        type: "bandpass",
-                        
-                    });
-
-                    feedbackGain.gain.value = +card.querySelector(".delay-feedback").dataset.value;
-                    delay.delayTime.value = +card.querySelector(".delay-time").dataset.value;
-                    bandpass.frequency.value = +card.querySelector(".delay-frequency").dataset.value;
-                    bandpass.Q.value = +card.querySelector(".delay-q").dataset.value;
-
-                    let delayTime = delay.delayTime.value;
-
-                    //Prevents infinite feedback loop while still allowing for metallic sounds.
-                    if (feedbackGain.gain.value === 1) {
-                        feedbackGain.gain.value -= 0.05;
-                        if (delay.delayTime.value === 0) {
-                            delayTime = 0.001;
-                        }
-                    }
-
-                    delayTotalTime = delayTime * calculateRepetitions(lastGain.gain.value, feedbackGain.gain.value);
-                    lastNode.connect(mediaStreamNode);
-                    lastNode.connect(audioCtx.destination);
-
-                    lastNode.connect(delay);
-                    delay.connect(feedbackGain);
-                    feedbackGain.connect(bandpass);
-                    bandpass.connect(delay);
-
-                    lastNode = delay;
+                    const delay = new createDelay(lastGain);
+                    
+                    delayTotalTime = delay.totalTime;
+                    
+                    lastNode.connect(delay.input);
+                    lastNode = delay.output;
                     createWaveform(lastNode, visualizer);
                 } else if (card.id.includes("reverb")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const reverbIR = audioCtx.createConvolver();
-                    const reverbNoise = audioCtx.createConvolver();
-                    const freeverb = new createFreeverb(10000, 0.5);
-                    const noiseGain = audioCtx.createGain();
-                    const wet = audioCtx.createGain();
-                    const dry = audioCtx.createGain();
-                    const merger = audioCtx.createGain();
-                    const preDelay = audioCtx.createDelay();
-                    const diffuseGain = audioCtx.createGain();
-                    const reflectionGain = audioCtx.createGain();
-                    const highpass = new BiquadFilterNode(audioCtx, {
-                        type: "highpass",
-                        frequency: +document.querySelector(".reverb-highpass").dataset.value,
-                    });
-                    const lowpass = new BiquadFilterNode(audioCtx, {
-                        type: "lowpass",
-                        frequency: +document.querySelector(".reverb-lowpass").dataset.value,
-                    });
+                    const reverb = new createReverb(time);
 
-                    reverbTotalTime = +document.querySelector(".reverb-predelay").dataset.value + +document.querySelector(".reverb-decay").dataset.value;
+                    reverbTotalTime = reverb.totalTime;
 
-                    const tailNoise = createNoise(+document.querySelector(".reverb-decay").dataset.value + 0.1);
-                    reverbIR.buffer = impulseResponse;
-                    reverbNoise.buffer = tailNoise.buffer;
-                    noiseGain.gain.setValueAtTime( 1, time + +document.querySelector(".reverb-predelay").dataset.value);
-                    noiseGain.gain.linearRampToValueAtTime(0, time + reverbTotalTime + 0.1);
+                    lastNode.connect(reverb.input);
 
-                    wet.gain.value = +document.querySelector(".reverb-wet").dataset.value;
-                    dry.gain.value = 1 - wet.gain.value;
-
-                    preDelay.delayTime.value = +document.querySelector(".reverb-predelay").dataset.value;
-
-                    diffuseGain.gain.value = +document.querySelector(".reverb-diffuse-volume").dataset.value;
-                    reflectionGain.gain.value = +document.querySelector(".reverb-reflection-volume").dataset.value;
-
-                    lastNode.connect(dry);
-                    dry.connect(merger);
-
-                    lastNode.connect(highpass);
-                    highpass.connect(lowpass);
-                    lowpass.connect(preDelay);
-                    preDelay.connect(reverbIR);
-                    preDelay.connect(reverbNoise);
-                    lowpass.connect(freeverb.input);
-                    reverbIR.connect(diffuseGain);
-                    reverbNoise.connect(noiseGain);
-                    noiseGain.connect(diffuseGain);
-                    freeverb.output.connect(reflectionGain);
-                    reflectionGain.connect(wet);
-                    diffuseGain.connect(wet);
-                    wet.connect(merger);
-                    lastNode = merger;
-                    lastGain = merger;
+                    lastNode = reverb.output;
+                    lastGain = reverb.output;
                     createWaveform(lastNode, visualizer);
                 }
             }
