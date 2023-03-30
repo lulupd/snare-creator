@@ -39,11 +39,11 @@ const playButton = document.querySelector(".play");
 let prevX = 0;
 let prevY = 0;
 
-let db;
-
 let initialPreset = {};
 
 let defaultPresets = {};
+
+let impulseResponse;
 
 const audioCtx = new AudioContext();
 
@@ -51,11 +51,13 @@ let osc = audioCtx.createOscillator();
 let noiseNode = createNoise(1);
 let emptySource = createNoise(1);
 
+const globalEnv = audioCtx.createGain();
+
 const mediaStreamNode = audioCtx.createMediaStreamDestination();
 const mediaRecorder = new MediaRecorder(mediaStreamNode.stream);
+
 let saveChunks = [];
 
-const globalEnv = audioCtx.createGain();
 
 
 fetch('/src/data/default-presets.json')
@@ -65,6 +67,11 @@ fetch('/src/data/default-presets.json')
         makeDefaultPresetOptions();
         makeUserPresetOptions();
     });
+
+fetch("/sounds/ir6.wav")
+    .then((response) => response.arrayBuffer())
+    .then((arrayBuffer) => audioCtx.decodeAudioData(arrayBuffer))
+    .then((irData) => impulseResponse = irData);
 
 //knob functionality
 function turnKnob(e, knob) {
@@ -287,8 +294,58 @@ function createNoise(duration) {
     return noise;
 }
 
+function createComb(delayTime, frequency, gainValue) {
+    this.delay = audioCtx.createDelay();
+    this.lowpass = audioCtx.createBiquadFilter();
+    this.gain = audioCtx.createGain();
+
+    this.delay.delayTime.value = delayTime;
+    this.lowpass.frequency.value = frequency;
+    this.gain.gain.value = gainValue;
+
+    this.delay.connect(this.lowpass);
+    this.lowpass.connect(this.gain);
+
+    this.input = this.delay;
+    this.output = this.gain;
+}
+
+function createFreeverb(frequency, gainValue) {
+    const COMB_FILTER_TUNINGS = [1557, 1617, 1491,  1422,  1277,  1356, 1188,  1116 ]
+    .map(delayPerSecond => delayPerSecond / audioCtx.sampleRate);
+    const ALLPASS_FREQUENCIES = [225, 556, 441, 341];
+
+    this.splitter = audioCtx.createChannelSplitter(2);
+    this.merger = audioCtx.createChannelMerger(2);
+    this.combfilters = COMB_FILTER_TUNINGS.map((delayTime) => new createComb(delayTime, frequency, gainValue));
+    this.allpasses = ALLPASS_FREQUENCIES.map((frequency) => new BiquadFilterNode(audioCtx, {type: "allpass", frequency: frequency}));
+
+    const combLeft = this.combfilters.slice(0, 1);
+    const combRight = this.combfilters.slice(7);
+
+    combLeft.forEach((comb) => {
+        this.splitter.connect(comb.input, 0);
+        comb.output.connect(this.splitter);
+        this.splitter.connect(this.merger, 0, 0);
+    });
+
+    combRight.forEach((comb) => {
+        this.splitter.connect(comb.input, 1);
+        comb.output.connect(this.splitter);
+        this.splitter.connect(this.merger, 0, 1);
+    });
+
+    this.merger.connect(this.allpasses[0]);
+    this.allpasses[0].connect(this.allpasses[1]);
+    this.allpasses[1].connect(this.allpasses[2]);
+    this.allpasses[2].connect(this.allpasses[3]);
+
+    this.input = this.splitter;
+    this.output = this.allpasses[3];
+}
+
 function createEmptyCard() {
-    let cardOptions = ["Compressor", "Delay"];
+    let cardOptions = ["Compressor", "Delay", "Reverb"];
     let newCard = document.createElement("div");
     newCard.classList.add("card");
     newCard.classList.add("effect");
@@ -352,8 +409,8 @@ function createEffectCard(type) {
     top.appendChild(visualizer);
     emptyCard.appendChild(top);
 
-    closeButton.onclick = () => emptyCard.remove();
-    muteButton.onclick = () => {
+    closeButton.addEventListener("click", () => emptyCard.remove());
+    muteButton.addEventListener("click", () => {
         let muted = muteButton.dataset.muted === "true";
         muteButton.dataset.muted = !muted;
 
@@ -364,7 +421,7 @@ function createEffectCard(type) {
             muteImg.setAttribute("src", "images/muted.svg");
             muteImg.setAttribute("alt", "A crossed out speaker. Click to unmute the effects of this card");
         }
-    };
+    });
 
     if (type === "Compressor") {
             let knobs = document.createElement("div");
@@ -428,6 +485,45 @@ function createEffectCard(type) {
 
             updateKnobs(emptyCard.getElementsByClassName("knob"));
             updateValueInputs();
+    } else if (type === "Reverb") {
+        let knobs = document.createElement("div");
+            knobs.classList.add("knobs");
+
+            knobs.innerText = type;
+
+            let knobRow1 = document.createElement("div");
+            knobRow1.classList.add("knob-row");
+            let knobRow2 = document.createElement("div");
+            knobRow2.classList.add("knob-row");
+            let knobRow3 = document.createElement("div");
+            knobRow3.classList.add("knob-row");
+
+            let wet = new createKnob("reverb-wet", 0, 0, 1, "%");
+            let decayTime = new createKnob("reverb-decay", 1, 0, 3, "s");
+            let preDelay = new createKnob("reverb-predelay", 0, 0, 0.5, "s");
+            let lowpassFreq = new createKnob("reverb-lowpass", 20000, 30, 20000, "Hz");
+            let highpassFreq = new createKnob("reverb-highpass", 0, 0, 20000, "Hz");
+            let reflectionVolume = new createKnob("reverb-reflection-volume",  1, 0, 2, "dB");
+            let diffuseVolume = new createKnob("reverb-diffuse-volume", 1, 0, 2, "dB");
+            
+            knobRow1.appendChild(wet.container);
+            knobRow1.appendChild(decayTime.container);
+            knobRow1.appendChild(preDelay.container);
+
+            knobRow2.appendChild(lowpassFreq.container);
+            knobRow2.appendChild(highpassFreq.container);
+
+            knobRow3.appendChild(reflectionVolume.container);
+            knobRow3.appendChild(diffuseVolume.container);
+
+            knobs.appendChild(knobRow1);
+            knobs.appendChild(knobRow2);
+            knobs.appendChild(knobRow3);
+
+            emptyCard.appendChild(knobs);
+
+            updateKnobs(emptyCard.getElementsByClassName("knob"));
+            updateValueInputs();
     }
 }
 
@@ -456,6 +552,12 @@ function createKnob(name, value, min, max, unit = "") {
     knobLabel.classList.add("label");
     let splitName = name.split("-");
     knobLabel.innerText = splitName[1].charAt(0).toUpperCase() + splitName[1].slice(1);
+    if (splitName.length > 2) {
+        for (let i = 2; i < splitName.length; i++) {
+            knobLabel.innerText += " ";
+            knobLabel.innerText += splitName[i].charAt(0).toUpperCase() + splitName[i].slice(1);
+        }
+    }
 
     knobContainer.appendChild(knobInput);
     knobContainer.appendChild(knob);
@@ -465,6 +567,7 @@ function createKnob(name, value, min, max, unit = "") {
 
 
     knob.addEventListener("mousedown", () => {startSlideRotation(knob)});
+    knob.addEventListener("dblclick", initializeKnob);
     knobMarker.addEventListener("mousedown", () => {startRotation(knob)});
 
     knobInput.addEventListener("change", handleInputChange);
@@ -508,6 +611,7 @@ function playOsc1(time) {
 
     osc1DistortionNode.curve = createDistortionCurve(distAmount);
 
+    osc1Env.gain.cancelScheduledValues(time);
     osc1Env.gain.setValueAtTime(0, time);
     osc1Env.gain.linearRampToValueAtTime(osc1Gain, time + attackTime);
     if (osc1Gain > 0) {
@@ -516,6 +620,7 @@ function playOsc1(time) {
     osc1Env.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
     //Pitch sweep
+    osc.frequency.cancelScheduledValues(time);
     osc.frequency.setValueAtTime(osc1Freq + (globalSweepAmount * 10), time);
     osc.frequency.exponentialRampToValueAtTime(osc1Freq, time + (decayTime / 4));
 
@@ -532,7 +637,6 @@ function playOsc1(time) {
 
     modulator.start(time);
     osc.start(time);
-    osc1Playing = true;
     osc.stop(time + attackTime + decayTime + releaseTime);
 }
 
@@ -570,6 +674,7 @@ function playNoise(time) {
 
         distortionNode.curve = createDistortionCurve(distAmount);
 
+        noiseEnv.gain.cancelScheduledValues(time);
         noiseEnv.gain.setValueAtTime(0, time);
         noiseEnv.gain.linearRampToValueAtTime(noiseGain, time + attackTime);
         if (noiseGain > 0) {
@@ -577,6 +682,7 @@ function playNoise(time) {
         }
         noiseEnv.gain.linearRampToValueAtTime(0, time + attackTime + decayTime + releaseTime);
 
+        noiseNode.detune.cancelScheduledValues(time);
         noiseNode.detune.setValueAtTime(globalSweepAmount, time);
         noiseNode.detune.linearRampToValueAtTime(0, time + (decayTime / 4))
 
@@ -593,7 +699,6 @@ function playNoise(time) {
         }
     
         noiseNode.start()
-        noisePlaying = true; 
         noiseNode.stop(time + attackTime + decayTime + releaseTime);
     }
 }
@@ -622,6 +727,7 @@ function playAll(time) {
     createWaveform(globalEnv, canvas);
 
     let delayTotalTime = 0;
+    let reverbTotalTime = 0;
     let effectCards = document.getElementsByClassName("effect");
 
     for (card of effectCards) {
@@ -663,13 +769,14 @@ function playAll(time) {
 
                     let delayTime = delay.delayTime.value;
 
+                    //Prevents infinite feedback loop while still allowing for metallic sounds.
                     if (feedbackGain.gain.value === 1) {
-                        feedbackGain.gain.value -= 0.1;
+                        feedbackGain.gain.value -= 0.05;
                         if (delay.delayTime.value === 0) {
-                            delayTime = 0.005;
+                            delayTime = 0.001;
                         }
                     }
-                    
+
                     delayTotalTime = delayTime * calculateRepetitions(lastGain.gain.value, feedbackGain.gain.value);
                     lastNode.connect(mediaStreamNode);
                     lastNode.connect(audioCtx.destination);
@@ -680,6 +787,62 @@ function playAll(time) {
                     bandpass.connect(delay);
 
                     lastNode = delay;
+                    createWaveform(lastNode, visualizer);
+                } else if (card.id.includes("reverb")) {
+                    const visualizer = card.querySelector(".visualizer");
+                    const reverbIR = audioCtx.createConvolver();
+                    const reverbNoise = audioCtx.createConvolver();
+                    const freeverb = new createFreeverb(10000, 0.5);
+                    const noiseGain = audioCtx.createGain();
+                    const wet = audioCtx.createGain();
+                    const dry = audioCtx.createGain();
+                    const merger = audioCtx.createGain();
+                    const preDelay = audioCtx.createDelay();
+                    const diffuseGain = audioCtx.createGain();
+                    const reflectionGain = audioCtx.createGain();
+                    const highpass = new BiquadFilterNode(audioCtx, {
+                        type: "highpass",
+                        frequency: +document.querySelector(".reverb-highpass").dataset.value,
+                    });
+                    const lowpass = new BiquadFilterNode(audioCtx, {
+                        type: "lowpass",
+                        frequency: +document.querySelector(".reverb-lowpass").dataset.value,
+                    });
+
+                    reverbTotalTime = +document.querySelector(".reverb-predelay").dataset.value + +document.querySelector(".reverb-decay").dataset.value;
+
+                    const tailNoise = createNoise(+document.querySelector(".reverb-decay").dataset.value + 0.1);
+                    reverbIR.buffer = impulseResponse;
+                    reverbNoise.buffer = tailNoise.buffer;
+                    noiseGain.gain.setValueAtTime( 1, time + +document.querySelector(".reverb-predelay").dataset.value);
+                    noiseGain.gain.linearRampToValueAtTime(0, time + reverbTotalTime + 0.1);
+
+                    wet.gain.value = +document.querySelector(".reverb-wet").dataset.value;
+                    dry.gain.value = 1 - wet.gain.value;
+
+                    preDelay.delayTime.value = +document.querySelector(".reverb-predelay").dataset.value;
+
+                    diffuseGain.gain.value = +document.querySelector(".reverb-diffuse-volume").dataset.value;
+                    reflectionGain.gain.value = +document.querySelector(".reverb-reflection-volume").dataset.value;
+
+                    lastNode.connect(dry);
+                    dry.connect(merger);
+
+                    lastNode.connect(highpass);
+                    highpass.connect(lowpass);
+                    lowpass.connect(preDelay);
+                    preDelay.connect(reverbIR);
+                    preDelay.connect(reverbNoise);
+                    lowpass.connect(freeverb.input);
+                    reverbIR.connect(diffuseGain);
+                    reverbNoise.connect(noiseGain);
+                    noiseGain.connect(diffuseGain);
+                    freeverb.output.connect(reflectionGain);
+                    reflectionGain.connect(wet);
+                    diffuseGain.connect(wet);
+                    wet.connect(merger);
+                    lastNode = merger;
+                    lastGain = merger;
                     createWaveform(lastNode, visualizer);
                 }
             }
@@ -699,7 +862,7 @@ function playAll(time) {
         +osc1ReleaseKnob.dataset.value :
         +noiseReleaseKnob.dataset.value;    
 
-    emptySource = createNoise(attack + decay + release + delayTotalTime + 0.1);
+    emptySource = createNoise(attack + decay + release + delayTotalTime + reverbTotalTime + 0.1);
     
 
     emptySource.addEventListener("ended", () => {
@@ -711,7 +874,7 @@ function playAll(time) {
     playNoise(time);
 
     emptySource.start(time);
-    emptySource.stop(time + attack + decay + release + delayTotalTime + 0.1);
+    emptySource.stop(time + attack + decay + release + delayTotalTime + reverbTotalTime + 0.1);
 }
 
 function updateKnobs(kArray) {
@@ -741,6 +904,44 @@ function updateValueInputs() {
             }
             input.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
         }
+    }
+}
+
+function initializeKnob(e) {
+    const oscCard = document.querySelector("#osc-card");
+    const oscKnobs = Array.from(oscCard.getElementsByClassName("knob"));
+
+    if (oscKnobs.includes(e.target)) {
+        const presetName = presetSelect.value;
+        const selectedOption = presetSelect.options[presetSelect.selectedIndex];
+        if (selectedOption.classList.contains("user")) {
+            let preset = JSON.parse(localStorage.getItem([presetName]));
+            if (preset !== null) {
+                e.target.dataset.value = preset[e.target.id];
+                updateValueInputs();
+                updateKnobs(knobArray);
+            }
+        } else if (presetName === "init") {
+            e.target.dataset.value = initialPreset[e.target.id];
+            updateValueInputs();
+            updateKnobs(knobArray);
+        } else {
+            let preset = defaultPresets[presetName];
+            e.target.dataset.value = preset[e.target.id];
+            updateValueInputs();
+            updateKnobs(knobArray);
+        }
+
+    } else {
+        if (e.target.className.includes("lowpass")) {
+            e.target.dataset.value = e.target.dataset.max;
+        } else if (e.target.className.includes("volume")) {
+            e.target.dataset.value = 1;
+        } else {
+            e.target.dataset.value = e.target.dataset.min;
+        }
+        updateValueInputs();
+        updateKnobs(knobArray);
     }
 }
 
@@ -977,6 +1178,7 @@ mediaRecorder.onstop = (e) => {
 
 for (let i = 0; i < knobArray.length; i++) {
     knobArray[i].addEventListener("mousedown", () => {startSlideRotation(knobArray[i])});
+    knobArray[i].addEventListener("dblclick", initializeKnob);
 }
 
 for (let i = 0; i < knobMarkers.length; i++) {
