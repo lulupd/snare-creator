@@ -1,30 +1,34 @@
 html {
     font-family: "Sora", sans-serif;
     height: 100%;
+    margin: 0;
+    overflow-y: auto;
+    display: flex;
+    scroll-behavior: auto;
 }
 
 body {
     margin: 0;
-    height: inherit;
     user-select: none;
     -moz-user-select: none;
+    flex: 0 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
     background: linear-gradient(white, #c8cac9);
+    padding-top: calc(100vw - 100%);
 }
 
 .card-container {
-    height: inherit;
     display: flex;
-    justify-content: center;
+    justify-content: space-around;
     align-items: center;
-    gap: 150px
+    gap: 150px;
+    margin-left: 650px;
 }
 
 .card {
     --marker-color: #45433e;
-    box-sizing: border-box;
     box-shadow: 0px 0px 25px;
     width: 600px;
     height: 900px;
@@ -36,26 +40,24 @@ body {
 }
 
 #osc-card {
-    background-color: #e1f0ea;
+    background-color: #e6f7f0;
 }
 
 #compressor-card {
-    background-color: #eb4949;
+    background-color: #f5b9d1;
     box-shadow: 0px 0px 25px black;
 }
 
 #delay-card {
-    --marker-color:white;
-    color: white;
-    background-color: #700074;
+    background-color: #aa9cfa;
 }
 
 #reverb-card {
-    background-color: #cf7c00;
+    background-color: #f3ae6e;
 }
 .plus-container {
-    margin-right: -300px;
     margin-left: 150px;
+    margin-right: 300px;
     width: 100px;
     height: 100px;
     padding: 20px;

@@ -22,6 +22,8 @@ const globalVolKnob = document.querySelector("#global-volume");
 const globalDistKnob = document.querySelector("#global-distortion");
 const globalSweepKnob = document.querySelector("#global-sweep");
 
+const htmlBase = document.querySelector("html");
+
 const presetSelect = document.querySelector("#presets");
 
 const knobArray = document.getElementsByClassName("knob");
@@ -101,7 +103,7 @@ function turnKnob(e, knob) {
 
 
         if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
-            if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
+            if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
                 knobVal *= 100;
             }
             knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
@@ -151,7 +153,7 @@ function slideTurnKnob(e, knob) {
 
     
     if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
-        if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
+        if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
             knobVal *= 100;
         }
         knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
@@ -294,7 +296,7 @@ function createNoise(duration) {
     return noise;
 }
 
-function createCompressor(time) {
+function createCompressor(time, card) {
     const compVolume = +card.querySelector(".comp-volume").dataset.value;
     const threshold = +card.querySelector(".comp-threshold").dataset.value;
     const knee = +card.querySelector(".comp-knee").dataset.value;
@@ -318,13 +320,14 @@ function createCompressor(time) {
     this.output = compressorEnv;
 }
 
-function createDelay(lastGain) {
+function createDelay(lastGain, card) {
     const feedbackVolume = +card.querySelector(".delay-feedback").dataset.value;
     let delayTime = +card.querySelector(".delay-time").dataset.value;
     const bandpassFreq = +card.querySelector(".delay-frequency").dataset.value;
     const bandpassQ = +card.querySelector(".delay-q").dataset.value;
     
     this.input = audioCtx.createGain();
+    this.output = audioCtx.createGain();
     const delay = audioCtx.createDelay();
     const feedbackGain = audioCtx.createGain();
     const bandpass = new BiquadFilterNode(audioCtx, {
@@ -354,8 +357,7 @@ function createDelay(lastGain) {
     delay.connect(feedbackGain);
     feedbackGain.connect(bandpass);
     bandpass.connect(delay);
-
-    this.output = delay;
+    delay.connect(this.output);
 }
 
 function createComb(delayTime, frequency, gainValue) {
@@ -408,16 +410,17 @@ function createFreeverb(frequency, gainValue) {
     this.output = this.allpasses[3];
 }
 
-function createReverb(time) {
-    const highpassFreq = +document.querySelector(".reverb-highpass").dataset.value;
-    const lowpassFreq = +document.querySelector(".reverb-lowpass").dataset.value;
-    const dampeningFreq = +document.querySelector(".reverb-dampening").dataset.value;
-    let roomSize = 1 - +document.querySelector(".reverb-room-size").dataset.value;
-    const preDelayTime = +document.querySelector(".reverb-predelay").dataset.value;
-    const decayTime = +document.querySelector(".reverb-decay").dataset.value;
-    const wetAmount = +document.querySelector(".reverb-wet").dataset.value;
-    const diffuseVolume = +document.querySelector(".reverb-diffuse-volume").dataset.value;
-    const reflectionVolume = +document.querySelector(".reverb-reflection-volume").dataset.value;
+function createReverb(time, card, previousTotalTime = 0) {
+    const highpassFreq = +card.querySelector(".reverb-highpass").dataset.value;
+    const lowpassFreq = +card.querySelector(".reverb-lowpass").dataset.value;
+    const dampeningFreq = +card.querySelector(".reverb-dampening").dataset.value;
+    let roomSize = 1 - +card.querySelector(".reverb-room-size").dataset.value;
+    const preDelayTime = +card.querySelector(".reverb-predelay").dataset.value;
+    const decayTime = +card.querySelector(".reverb-decay").dataset.value;
+    const diffuseVolume = +card.querySelector(".reverb-diffuse-volume").dataset.value;
+    const reflectionVolume = +card.querySelector(".reverb-reflection-volume").dataset.value;
+    const wetAmount = +card.querySelector(".reverb-wet").dataset.value;
+
     
     this.input = audioCtx.createGain();
     this.output = audioCtx.createGain();
@@ -440,17 +443,21 @@ function createReverb(time) {
         frequency: lowpassFreq,
     });
 
-    this.totalTime = preDelayTime + decayTime;
+    if (wetAmount > 0) {
+        this.totalTime = preDelayTime + decayTime;
+    } else {
+        this.totalTime = 0;
+    }
 
-    const tailNoise = createNoise(decayTime + 0.1);
+    const tailNoise = createNoise(decayTime + previousTotalTime + 0.1);
     reverbIR.buffer = impulseResponse;
     reverbNoise.buffer = tailNoise.buffer;
 
     freeverbGain.gain.setValueAtTime( 1, time + preDelayTime);
-    freeverbGain.gain.linearRampToValueAtTime(0, time + this.totalTime + 0.1);
+    freeverbGain.gain.linearRampToValueAtTime(0, time + this.totalTime + previousTotalTime + 0.1);
 
     noiseGain.gain.setValueAtTime( 1, time + preDelayTime);
-    noiseGain.gain.linearRampToValueAtTime(0, time + this.totalTime + 0.1);
+    noiseGain.gain.linearRampToValueAtTime(0, time + this.totalTime + previousTotalTime + 0.1);
 
     wet.gain.value = wetAmount;
     dry.gain.value = 1 - wetAmount;
@@ -518,6 +525,10 @@ function createEmptyCard() {
         optionContainer.appendChild(option);
     }
     document.querySelector(".card-container").appendChild(newCard);
+    window.scrollBy({
+        left: 450,
+        behavior: "smooth"
+    });
 }
 
 function createEffectCard(type) {
@@ -890,11 +901,12 @@ function playAll(time) {
 
     for (card of effectCards) {
         let muteButton = card.querySelector(".mute-button");
+        let closeButton = card.querySelector(".close-button");
         if (muteButton !== null) {
             if (muteButton.dataset.muted !== "true") {
                 if (card.id.includes("compressor")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const compressor = new createCompressor(time);
+                    const compressor = new createCompressor(time, card);
 
                     lastNode.connect(compressor.input);
 
@@ -904,16 +916,18 @@ function playAll(time) {
 
                 } else if (card.id.includes("delay")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const delay = new createDelay(lastGain);
+                    const delay = new createDelay(lastGain, card);
                     
                     delayTotalTime = delay.totalTime;
                     
                     lastNode.connect(delay.input);
+
                     lastNode = delay.output;
+                    lastGain = delay.output;
                     createWaveform(lastNode, visualizer);
                 } else if (card.id.includes("reverb")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const reverb = new createReverb(time);
+                    const reverb = new createReverb(time, card, delayTotalTime);
 
                     reverbTotalTime = reverb.totalTime;
 
@@ -923,6 +937,19 @@ function playAll(time) {
                     lastGain = reverb.output;
                     createWaveform(lastNode, visualizer);
                 }
+            }
+            muteButton.addEventListener("click", () => {
+                if (muteButton.dataset.muted === "true") {
+                    lastGain.gain.value = 0;
+                } else {
+                    lastGain.gain.value = 1;
+                }
+            });
+            if (closeButton !== null) {
+                closeButton.addEventListener("click", () => {
+                    lastNode.disconnect()
+                    emptySource.stop();
+                });
             }
         }
     }
@@ -972,7 +999,7 @@ function updateValueInputs() {
         let knobVal = +knob.dataset.value;
 
         if (knob.dataset.unit === "%" || knob.dataset.unit === "") {
-            if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
+            if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
                 knobVal *= 100;
             }
             input.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
@@ -1038,27 +1065,35 @@ function handleInputChange(e) {
         newValue.trimEnd();
     }
     
-
-    if (knob.id.includes("sustain") || knob.className.includes("feedback")) {
-        newValue = +newValue / 100;
-    } else if (knob.id.includes("volume") || knob.className.includes("volume")) {
-        newValue = Math.pow(10, (+newValue / 20));
-    }
-
-    if (+newValue < +knob.dataset.min) {
-        newValue = +knob.dataset.min;
-    } else if (+newValue > +knob.dataset.max) {
-        newValue = +knob.dataset.max;
-    }
+    newValue = +newValue;
 
     if (!isNaN(newValue) && !isNaN(parseInt(newValue))) {
-        knob.dataset.value = +newValue;
+        if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
+            newValue = newValue / 100;
+        } else if (knob.id.includes("volume") || knob.className.includes("volume")) {
+            newValue = Math.pow(10, (newValue / 20));
+        }
+
+        if (newValue < +knob.dataset.min) {
+            newValue = +knob.dataset.min;
+        } else if (newValue > +knob.dataset.max) {
+            newValue = +knob.dataset.max;
+        }
+
+    
+        knob.dataset.value = newValue;
         let knobUnit = knob.dataset.unit;
     
         if (knobUnit === "%" || knobUnit === "") {
-            e.target.value = `${e.target.value}${knobUnit}`
+            if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
+                newValue = newValue * 100;
+            }
+            e.target.value = `${newValue.toFixed(2)}${knobUnit}`
         } else {
-            e.target.value = `${e.target.value} ${knobUnit}`
+            if (knob.id.includes("volume") || knob.className.includes("volume")) {
+                newValue = 20 * (Math.log(newValue)/Math.LN10);
+            }
+            e.target.value = `${newValue.toFixed(2)} ${knobUnit}`
         }
     }
     updateKnobs(knobArray);
@@ -1108,6 +1143,40 @@ function handlePlayButton() {
         playButton.dataset.playing = false;
         playButton.innerText = "Play";
     }
+}
+
+function handleScrolling(container) {
+    let scrollWidth;
+
+    let targetLeft;
+
+    let getScrollStep = () => scrollWidth / 100;
+
+    const scrollLeft = () => {
+        let previousLeft = container.scrollLeft;
+        let step = getScrollStep();
+        let diff = targetLeft - container.scrollLeft;
+        let deltaX = step >= Math.abs(diff) ? diff : Math.sign(diff) * step;
+
+        container.scrollBy(deltaX, 0);
+
+        if (previousLeft === container.scrollLeft || container.scrollLeft === targetLeft) {
+            return;
+        }
+        requestAnimationFrame(scrollLeft);
+    };
+
+    container.addEventListener("wheel", (e) => {
+        e.preventDefault();
+
+        scrollWidth = container.scrollWidth - container.clientWidth;
+        targetLeft = Math.min(scrollWidth, Math.max(0, container.scrollLeft + e.deltaY));
+        
+        requestAnimationFrame(scrollLeft);
+    }, {
+        passive: false
+    });
+
 }
 
 function openCornerMenu() {
@@ -1299,5 +1368,6 @@ window.addEventListener("click", (e) => {
     }
 });
 
+handleScrolling(htmlBase);
 updateKnobs(knobArray);
 updateValueInputs();
