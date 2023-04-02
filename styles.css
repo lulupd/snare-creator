@@ -43,16 +43,16 @@ body {
     background-color: #e6f7f0;
 }
 
-#compressor-card {
+.compressor-card {
     background-color: #f5b9d1;
     box-shadow: 0px 0px 25px black;
 }
 
-#delay-card {
+.delay-card {
     background-color: #aa9cfa;
 }
 
-#reverb-card {
+.reverb-card {
     background-color: #f3ae6e;
 }
 .plus-container {

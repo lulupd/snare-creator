@@ -487,56 +487,58 @@ function createReverb(time, card, previousTotalTime = 0) {
 }
 
 function createEmptyCard() {
-    let cardOptions = ["Compressor", "Delay", "Reverb"];
-    let newCard = document.createElement("div");
-    newCard.classList.add("card");
-    newCard.classList.add("effect");
-    newCard.id = "empty-card"
-
-    let topBar = document.createElement("div");
-    topBar.classList.add("top-bar");
+    if (document.querySelector("#empty-card") === null) {
+        let cardOptions = ["Compressor", "Delay", "Reverb"];
+        let newCard = document.createElement("div");
+        newCard.classList.add("card");
+        newCard.classList.add("effect");
+        newCard.classList.add("empty-card");
     
-    let closeButton = document.createElement("div");
-    closeButton.classList.add("close-button");
-
-    let closeImg = document.createElement("img");
-    closeImg.setAttribute("src", "images/close.svg");
-    closeImg.setAttribute("width", 15);
-    closeImg.setAttribute("alt", "An X. Click to close this card");
-
-    closeButton.appendChild(closeImg);
-
-    closeButton.addEventListener("click", () => newCard.remove());
-
-    topBar.appendChild(closeButton);
-    newCard.appendChild(topBar);
-
-    let title = document.createElement("h2");
-    title.innerText = "Pick a new card:";
-    newCard.appendChild(title);
-
-    let optionContainer = document.createElement("div");
-    optionContainer.classList.add("option-container");
-    newCard.appendChild(optionContainer);
-    for (card of cardOptions) {
-        let option = document.createElement("p");
-        option.innerText = card;
-        option.onclick = () => createEffectCard(option.innerText);
-        optionContainer.appendChild(option);
+        let topBar = document.createElement("div");
+        topBar.classList.add("top-bar");
+        
+        let closeButton = document.createElement("div");
+        closeButton.classList.add("close-button");
+    
+        let closeImg = document.createElement("img");
+        closeImg.setAttribute("src", "images/close.svg");
+        closeImg.setAttribute("width", 15);
+        closeImg.setAttribute("alt", "An X. Click to close this card");
+    
+        closeButton.appendChild(closeImg);
+    
+        closeButton.addEventListener("click", () => newCard.remove());
+    
+        topBar.appendChild(closeButton);
+        newCard.appendChild(topBar);
+    
+        let title = document.createElement("h2");
+        title.innerText = "Pick a new card:";
+        newCard.appendChild(title);
+    
+        let optionContainer = document.createElement("div");
+        optionContainer.classList.add("option-container");
+        newCard.appendChild(optionContainer);
+        for (card of cardOptions) {
+            let option = document.createElement("p");
+            option.innerText = card;
+            option.onclick = () => createEffectCard(option.innerText);
+            optionContainer.appendChild(option);
+        }
+        document.querySelector(".card-container").appendChild(newCard);
+        window.scrollBy({
+            left: 450,
+            behavior: "smooth"
+        });
     }
-    document.querySelector(".card-container").appendChild(newCard);
-    window.scrollBy({
-        left: 450,
-        behavior: "smooth"
-    });
 }
 
 function createEffectCard(type) {
-    let emptyCard = document.querySelector("#empty-card");
+    let emptyCard = document.querySelector(".empty-card");
     emptyCard.innerHTML = "";
 
     //General Effect Card Layout
-    emptyCard.id = `${type.toLowerCase()}-card`;
+    emptyCard.classList.add(`${type.toLowerCase()}-card`);
 
     let top = document.createElement("div");
     top.classList.add("top");
@@ -904,7 +906,7 @@ function playAll(time) {
         let closeButton = card.querySelector(".close-button");
         if (muteButton !== null) {
             if (muteButton.dataset.muted !== "true") {
-                if (card.id.includes("compressor")) {
+                if (card.className.includes("compressor")) {
                     const visualizer = card.querySelector(".visualizer");
                     const compressor = new createCompressor(time, card);
 
@@ -914,7 +916,7 @@ function playAll(time) {
                     lastGain = compressor.output;
                     createWaveform(lastNode, visualizer);
 
-                } else if (card.id.includes("delay")) {
+                } else if (card.className.includes("delay")) {
                     const visualizer = card.querySelector(".visualizer");
                     const delay = new createDelay(lastGain, card);
                     
@@ -925,7 +927,7 @@ function playAll(time) {
                     lastNode = delay.output;
                     lastGain = delay.output;
                     createWaveform(lastNode, visualizer);
-                } else if (card.id.includes("reverb")) {
+                } else if (card.className.includes("reverb")) {
                     const visualizer = card.querySelector(".visualizer");
                     const reverb = new createReverb(time, card, delayTotalTime);
 
