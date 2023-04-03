@@ -62,7 +62,7 @@ let saveChunks = [];
 
 const knobValueChanged = new Event("valuechanged");
 
-fetch('../../src/data/default-presets.json')
+fetch('https://lulupd.github.io/snare-creator/src/data/default-presets.json')
     .then((response) => response.json())
     .then((json) => {
         defaultPresets = json;
@@ -70,7 +70,7 @@ fetch('../../src/data/default-presets.json')
         makeUserPresetOptions();
     });
 
-fetch("../../sounds/ir6.wav")
+fetch("https://lulupd.github.io/snare-creator/sounds/ir6.wav")
     .then((response) => response.arrayBuffer())
     .then((arrayBuffer) => audioCtx.decodeAudioData(arrayBuffer))
     .then((irData) => impulseResponse = irData);
