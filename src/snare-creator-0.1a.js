@@ -1610,8 +1610,6 @@ function makeDefaultPresetOptions() {
 
 playButton.addEventListener("click", handlePlayButton);
 
-document.querySelector(".stop").onclick = () => snarePlaying = false;
-
 mediaRecorder.ondataavailable = (e) => {
     saveChunks = [];
     saveChunks.push(e.data);
