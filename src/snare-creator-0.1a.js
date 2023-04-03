@@ -1190,7 +1190,7 @@ function playAll(time) {
 
                     lastNode = reverb.output;
                     lastGain = reverb.output;
-                    createGraphicEQ(lastNode, visualizer);
+                    createWaveform(lastNode, visualizer);
                 } else if (card.className.includes("equalizer")) {
                     const visualizer = card.querySelector(".visualizer");
                     const visualizerOverlay = card.querySelector(".visualizer-overlay");
