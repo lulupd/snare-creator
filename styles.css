@@ -172,6 +172,7 @@ body {
 
 .show {
     display: block;
+    z-index: 1;
 }
 
 select {
@@ -186,7 +187,8 @@ select {
     width: 420px;
 }
 .visualizer,
-.visualizer-overlay {
+.visualizer-overlay,
+.eq-canvas {
     position: absolute;
 }
 

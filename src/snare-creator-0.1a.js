@@ -235,7 +235,7 @@ function createDistortionCurve(amount) {
     return curve;
 }
 
-function createWaveform(source, visualizer, color = "rgb(255, 255, 255)") {
+function createWaveform(source, visualizer) {
     const WIDTH = visualizer.width;
     const HEIGHT = visualizer.height;
 
@@ -253,11 +253,10 @@ function createWaveform(source, visualizer, color = "rgb(255, 255, 255)") {
 
         const drawVisual = requestAnimationFrame(draw);
         analyser.getByteTimeDomainData(dataArray);
-        canvasCtx.fillStyle = "rgb(0, 0, 0)";
-        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
         canvasCtx.lineWidth = 2;
-        canvasCtx.strokeStyle = color;
+        canvasCtx.strokeStyle = "rgb(255, 255, 255)";
         canvasCtx.beginPath();
 
         const sliceWidth = WIDTH / bufferLength;
@@ -282,7 +281,7 @@ function createWaveform(source, visualizer, color = "rgb(255, 255, 255)") {
     draw();
 }
 
-function createBarVisualizer(source, visualizer) {
+function createBarVisualizer(source, visualizer, color = "rgb(255, 255, 255)") {
     const WIDTH = visualizer.width;
     const HEIGHT = visualizer.height;
 
@@ -300,8 +299,7 @@ function createBarVisualizer(source, visualizer) {
         const drawVisual = requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
         let bar_count = WIDTH / 2;
-        canvasCtx.fillStyle = "rgb(0, 0, 0)";
-        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
 
         let x = 0;
@@ -311,7 +309,7 @@ function createBarVisualizer(source, visualizer) {
             let bar_width = 2;
             let bar_height = -(dataArray[i]/ 2);
 
-            canvasCtx.fillStyle = "rgb(255, 255, 255)";
+            canvasCtx.fillStyle = color;
             canvasCtx.fillRect(bar_pos, HEIGHT, bar_width, bar_height);
         }
     };
@@ -579,11 +577,11 @@ function createParametricEQ(card, canvas) {
             eqNode.type = "highshelf";
         } else {
             eqNode.type = "peaking";
+            eqNode.Q.value = qKnobs[i - 1].dataset.value;
         }
 
         eqNode.frequency.value = freqKnobs[i].dataset.value;
         eqNode.gain.value = gainKnobs[i].dataset.value;
-        eqNode.Q.value = qKnobs[i].dataset.value;
 
         previousNode.connect(eqNode);
 
@@ -598,7 +596,10 @@ function createParametricEQ(card, canvas) {
         for (let i = 0; i < this.eqNodes.length; i++) {
             this.eqNodes[i].frequency.value = freqKnobs[i].dataset.value;
             this.eqNodes[i].gain.value = gainKnobs[i].dataset.value;
-            this.eqNodes[i].Q.value = qKnobs[i].dataset.value;
+
+            if (this.eqNodes[i].type === "peaking") {
+                this.eqNodes[i].Q.value = qKnobs[i- 1].dataset.value;
+            }
         }
 
         if (this.eqFreqs == null) {
@@ -615,7 +616,6 @@ function createParametricEQ(card, canvas) {
         let stepX = WIDTH / (FREQ_MAX - FREQ_MIN);
         let stepY = HEIGHT / (MAG_MAX - MAG_MIN);
     
-        canvasCtx.fillStyle = "#000000";
         canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
         let eqMag = getEqResponse(this.eqFreqs, this.eqNodes);
@@ -880,7 +880,12 @@ function createEffectCard(type) {
         visualizerOverlay.classList.remove("visualizer");
         visualizerOverlay.classList.add("visualizer-overlay");
 
+        let eqCanvas = document.querySelector(".visualizer").cloneNode();
+        eqCanvas.classList.remove("visualizer");
+        eqCanvas.classList.add("eq-canvas");
+
         visualizerContainer.appendChild(visualizerOverlay);
+        visualizerContainer.appendChild(eqCanvas);
 
         let knobs = document.createElement("div");
         knobs.classList.add("knobs");
@@ -910,9 +915,12 @@ function createEffectCard(type) {
         let lowshelfQ = new createKnob("lowshelf-q", 1, 0.0001, 100);
         let peakQ = new createKnob("peak-q", 1, 0.0001, 100);
         let peakQ2 = new createKnob("peak-q", 1, 0.0001, 100);
-        let peakQ3 = new createKnob("lowshelf-q", 1, 0.0001, 100);
+        let peakQ3 = new createKnob("peak-q", 1, 0.0001, 100);
         let highshelfQ = new createKnob("highshelf-q", 1, 0.0001, 100);
         
+        lowshelfQ.container.innerHTML = "";
+        highshelfQ.container.innerHTML = "";
+
         knobRow1.appendChild(lowshelfFreq.container);
         knobRow1.appendChild(peakFreq.container);
         knobRow1.appendChild(peakFreq2.container);
@@ -958,6 +966,7 @@ function createKnob(name, value, min, max, unit = "") {
     knob.classList.add(name);
 
     knob.dataset.value = value;
+    knob.dataset.initial = value;
     knob.dataset.min = min;
     knob.dataset.max = max;
     knob.dataset.unit = unit;
@@ -1185,15 +1194,18 @@ function playAll(time) {
                 } else if (card.className.includes("equalizer")) {
                     const visualizer = card.querySelector(".visualizer");
                     const visualizerOverlay = card.querySelector(".visualizer-overlay");
+                    const eqCanvas = card.querySelector(".eq-canvas");
 
-                    const equalizer = new createParametricEQ(card, visualizerOverlay);
+                    createBarVisualizer(lastNode, visualizer, "rgb(100, 100, 100)");
+                    
+                    const equalizer = new createParametricEQ(card, eqCanvas);
 
                     lastNode.connect(equalizer.input);
 
                     lastNode = equalizer.output;
                     lastGain = equalizer.output;
                     
-                    createBarVisualizer(lastNode, visualizer);
+                    createBarVisualizer(lastNode, visualizerOverlay);
                 }
             }
             muteButton.addEventListener("click", () => {
@@ -1302,13 +1314,7 @@ function initializeKnob(e) {
         }
 
     } else {
-        if (e.target.className.includes("lowpass")) {
-            e.target.dataset.value = e.target.dataset.max;
-        } else if (e.target.className.includes("volume")) {
-            e.target.dataset.value = 1;
-        } else {
-            e.target.dataset.value = e.target.dataset.min;
-        }
+        e.target.dataset.value = e.target.dataset.initial;
         updateValueInputs();
         updateKnobs(knobArray);
     }
