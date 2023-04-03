@@ -207,7 +207,7 @@ function startSlideRotation(knob) {
 
 function calculateRepetitions(gain, feedback, repetitions = 1) {
     gain *= feedback;
-    if (gain < 0.005) {
+    if (gain <= 0.01) {
         return repetitions;
     } else if (feedback === 1) {
         return 0;
@@ -335,6 +335,20 @@ function createNoise(duration) {
     return noise;
 }
 
+function createEmptyBufferSource(duration) {
+    let bufferSize = audioCtx.sampleRate * duration;
+    let buffer = new AudioBuffer({
+        length: bufferSize,
+        sampleRate: audioCtx.sampleRate,
+    });
+    
+    let bufferSource = new AudioBufferSourceNode(audioCtx, {
+        buffer: buffer,
+    });
+
+    return bufferSource;
+}
+
 function createClamper(headroom) {
     let volumeClamper = audioCtx.createWaveShaper();
     let clamperCurve = new Float32Array(3);
@@ -405,15 +419,17 @@ function createDelay(lastGain, card) {
     }
 
     this.totalTime = delayTime * calculateRepetitions(lastGain.gain.value, feedbackGain.gain.value);
-    
-    this.input.connect(mediaStreamNode);
-    this.input.connect(audioCtx.destination);
 
-    this.input.connect(delay);
-    delay.connect(feedbackGain);
-    feedbackGain.connect(bandpass);
-    bandpass.connect(delay);
-    delay.connect(this.output);
+    if (feedbackVolume > 0 || delayTime > 0) {
+        this.input.connect(this.output);
+        this.input.connect(delay);
+        delay.connect(feedbackGain);
+        feedbackGain.connect(bandpass);
+        bandpass.connect(delay);
+        delay.connect(this.output);   
+    } else {
+        this.input.connect(this.output);
+    }
 }
 
 function createComb(delayTime, frequency, gainValue) {
@@ -499,19 +515,18 @@ function createReverb(time, card, previousTotalTime = 0) {
         frequency: lowpassFreq,
     });
 
-    if (wetAmount > 0) {
-        this.totalTime = preDelayTime + decayTime;
-    } else {
-        this.totalTime = 0;
-    }
-
-    const tailNoise = createNoise(decayTime + previousTotalTime + 0.1);
+    
+    this.totalTime = preDelayTime + decayTime;
+    
+    const tailNoise = createNoise(decayTime + 0.1);
     reverbIR.buffer = impulseResponse;
     reverbNoise.buffer = tailNoise.buffer;
 
+    freeverbGain.gain.cancelScheduledValues(time);
     freeverbGain.gain.setValueAtTime( 1, time + preDelayTime);
     freeverbGain.gain.linearRampToValueAtTime(0, time + this.totalTime + previousTotalTime + 0.1);
 
+    noiseGain.gain.cancelScheduledValues(time);
     noiseGain.gain.setValueAtTime( 1, time + preDelayTime);
     noiseGain.gain.linearRampToValueAtTime(0, time + this.totalTime + previousTotalTime + 0.1);
 
@@ -540,6 +555,10 @@ function createReverb(time, card, previousTotalTime = 0) {
     reflectionGain.connect(wet);
     diffuseGain.connect(wet);
     wet.connect(this.output);
+
+    if (wetAmount <= 0) {
+        this.totalTime = 0;
+    }
 }
 
 function createParametricEQ(card, canvas) {
@@ -1053,6 +1072,7 @@ function playOsc1(time) {
     modulatorGain.connect(osc.frequency);
     
     osc.disconnect();
+
     if (distAmount > 0) {
         osc.connect(osc1DistortionNode);
         osc1DistortionNode.connect(osc1Env).connect(globalEnv);
@@ -1081,12 +1101,10 @@ function playNoise(time) {
         noiseNode = createNoise(attackTime + decayTime + releaseTime);
 
         const noiseEnv = audioCtx.createGain();
-
         const highpass = new BiquadFilterNode(audioCtx, {
             type: "highpass",
             
         });
-
         const lowpass = new BiquadFilterNode(audioCtx, {
             type: "lowpass",
             
@@ -1136,18 +1154,19 @@ function playAll(time) {
 
     const globalDistortionNode = audioCtx.createWaveShaper();
     globalDistortionNode.curve = createDistortionCurve(globalDistAmount);
-    globalDistortionNode.oversample = "2x";
     
-    globalEnv.gain.value = globalGain;
+    globalEnv.gain.setValueAtTime(globalGain, time);
 
     let lastNode = globalEnv;
-    let lastGain = globalEnv;
+    let outputs = [globalEnv];
 
     globalEnv.disconnect();
+
     if (globalDistAmount > 0) {
         lastNode.connect(globalDistortionNode);
         lastNode = globalDistortionNode;
     }
+    
     //Main card waveform.
     createWaveform(globalEnv, canvas);
 
@@ -1166,20 +1185,21 @@ function playAll(time) {
 
                     lastNode.connect(compressor.input);
 
-                    lastNode = compressor.output;
-                    lastGain = compressor.output;
-                    createWaveform(lastNode, visualizer);
+                    outputs.push(compressor.output);
 
+                    lastNode = compressor.output;
+                    createWaveform(lastNode, visualizer);
                 } else if (card.className.includes("delay")) {
                     const visualizer = card.querySelector(".visualizer");
-                    const delay = new createDelay(lastGain, card);
+                    const delay = new createDelay(lastNode, card);
                     
                     delayTotalTime = delay.totalTime;
                     
                     lastNode.connect(delay.input);
 
+                    outputs.push(delay.output);
+
                     lastNode = delay.output;
-                    lastGain = delay.output;
                     createWaveform(lastNode, visualizer);
                 } else if (card.className.includes("reverb")) {
                     const visualizer = card.querySelector(".visualizer");
@@ -1189,8 +1209,9 @@ function playAll(time) {
 
                     lastNode.connect(reverb.input);
 
+                    outputs.push(reverb.output);
+
                     lastNode = reverb.output;
-                    lastGain = reverb.output;
                     createWaveform(lastNode, visualizer);
                 } else if (card.className.includes("equalizer")) {
                     const visualizer = card.querySelector(".visualizer");
@@ -1203,17 +1224,17 @@ function playAll(time) {
 
                     lastNode.connect(equalizer.input);
 
+                    outputs.push(equalizer.output);
+
                     lastNode = equalizer.output;
-                    lastGain = equalizer.output;
-                    
                     createBarVisualizer(lastNode, visualizerOverlay);
                 }
             }
             muteButton.addEventListener("click", () => {
                 if (muteButton.dataset.muted === "true") {
-                    lastGain.gain.value = 0;
+                    lastNode.gain.value = 0;
                 } else {
-                    lastGain.gain.value = 1;
+                    lastNode.gain.value = 1;
                 }
             });
             if (closeButton !== null) {
@@ -1244,12 +1265,12 @@ function playAll(time) {
         +osc1ReleaseKnob.dataset.value :
         +noiseReleaseKnob.dataset.value;    
 
-    emptySource = createNoise(attack + decay + release + delayTotalTime + reverbTotalTime + 0.1);
+    emptySource = createEmptyBufferSource(attack + decay + release + delayTotalTime + reverbTotalTime + 0.1);
     
 
     emptySource.addEventListener("ended", () => {
-        handleSoundEnd()
-        lastNode.disconnect();
+        handleSoundEnd();
+        disconnectNodes(outputs);
     });
 
     playOsc1(time);
@@ -1257,6 +1278,12 @@ function playAll(time) {
 
     emptySource.start(time);
     emptySource.stop(time + attack + decay + release + delayTotalTime + reverbTotalTime + 0.1);
+}
+
+function disconnectNodes(nodes) {
+    for (node of nodes) {
+        node.disconnect();
+    }
 }
 
 function updateKnobs(kArray) {
@@ -1625,12 +1652,13 @@ for (let i = 0; i < knobArray.length; i++) {
 }
 
 presetSelect.addEventListener("change", (e) => {
-    loadPreset(e.target);
+    loadPreset(presetSelect);
 });
 
 presetSelect.addEventListener("click", (e) => {
-    if (e.detail === 0) {
-        loadPreset(e.target);
+    console.log(navigator.userAgent);
+    if ((e.detail === 0 && (navigator.userAgent.indexOf("Chrome") > -1))|| e.target.tagName === "OPTION") {
+        loadPreset(presetSelect);
     }
 });
 
