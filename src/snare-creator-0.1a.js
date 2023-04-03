@@ -1656,7 +1656,6 @@ presetSelect.addEventListener("change", (e) => {
 });
 
 presetSelect.addEventListener("click", (e) => {
-    console.log(navigator.userAgent);
     if ((e.detail === 0 && (navigator.userAgent.indexOf("Chrome") > -1))|| e.target.tagName === "OPTION") {
         loadPreset(presetSelect);
     }
