@@ -718,6 +718,7 @@ function createEffectCard(type) {
     emptyCard.innerHTML = "";
 
     //General Effect Card Layout
+    emptyCard.classList.remove("empty-card");
     emptyCard.classList.add(`${type.toLowerCase()}-card`);
 
     let top = document.createElement("div");
