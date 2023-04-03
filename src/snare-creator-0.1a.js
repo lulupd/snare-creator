@@ -60,7 +60,7 @@ const mediaRecorder = new MediaRecorder(mediaStreamNode.stream);
 
 let saveChunks = [];
 
-
+const knobValueChanged = new Event("valuechanged");
 
 fetch('/src/data/default-presets.json')
     .then((response) => response.json())
@@ -109,11 +109,13 @@ function turnKnob(e, knob) {
             knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
         } else {
             if (knob.id.includes("volume") || knob.className.includes("volume")) {
-                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+                knobVal = 20 * Math.log10(knobVal);
             }
             knobInput.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
         }
     }
+
+    knob.dispatchEvent(knobValueChanged);
 
     return deg;
 }
@@ -159,10 +161,12 @@ function slideTurnKnob(e, knob) {
         knobInput.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
     } else {
         if (knob.id.includes("volume") || knob.className.includes("volume")) {
-            knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+            knobVal = 20 * Math.log10(knobVal);
         }
         knobInput.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
     }
+
+    knob.dispatchEvent(knobValueChanged);
 
     return deg;
 }
@@ -231,9 +235,9 @@ function createDistortionCurve(amount) {
     return curve;
 }
 
-function createWaveform(source, visualizer) {
-    WIDTH = visualizer.width;
-    HEIGHT = visualizer.height;
+function createWaveform(source, visualizer, color = "rgb(255, 255, 255)") {
+    const WIDTH = visualizer.width;
+    const HEIGHT = visualizer.height;
 
     const canvasCtx = visualizer.getContext("2d");
 
@@ -253,7 +257,7 @@ function createWaveform(source, visualizer) {
         canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
         canvasCtx.lineWidth = 2;
-        canvasCtx.strokeStyle = "rgb(255, 255, 255)";
+        canvasCtx.strokeStyle = color;
         canvasCtx.beginPath();
 
         const sliceWidth = WIDTH / bufferLength;
@@ -278,6 +282,43 @@ function createWaveform(source, visualizer) {
     draw();
 }
 
+function createBarVisualizer(source, visualizer) {
+    const WIDTH = visualizer.width;
+    const HEIGHT = visualizer.height;
+
+    const canvasCtx = visualizer.getContext("2d");
+
+    const analyser = audioCtx.createAnalyser();
+    source.connect(analyser);
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    const draw = function () {
+
+        const drawVisual = requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+        let bar_count = WIDTH / 2;
+        canvasCtx.fillStyle = "rgb(0, 0, 0)";
+        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+
+        let x = 0;
+
+        for (let i = 0; i < bar_count; i++) {
+            let bar_pos = i * 4;
+            let bar_width = 2;
+            let bar_height = -(dataArray[i]/ 2);
+
+            canvasCtx.fillStyle = "rgb(255, 255, 255)";
+            canvasCtx.fillRect(bar_pos, HEIGHT, bar_width, bar_height);
+        }
+    };
+
+    draw();
+}
+
 function createNoise(duration) {
     let bufferSize = audioCtx.sampleRate * duration;
     let noiseBuffer = new AudioBuffer({
@@ -294,6 +335,23 @@ function createNoise(duration) {
     });
 
     return noise;
+}
+
+function createClamper(headroom) {
+    let volumeClamper = audioCtx.createWaveShaper();
+    let clamperCurve = new Float32Array(3);
+    clamperCurve[0] = -1;
+    clamperCurve[1] = 0;
+    clamperCurve[2] = 1;
+
+    volumeClamper.curve = clamperCurve;
+
+    this.input = volumeClamper;
+    this.output = audioCtx.createGain();
+
+    this.output.gain.value = Math.pow(10, (headroom / 20));
+
+    volumeClamper.connect(this.output);
 }
 
 function createCompressor(time, card) {
@@ -486,9 +544,131 @@ function createReverb(time, card, previousTotalTime = 0) {
     wet.connect(this.output);
 }
 
+function createParametricEQ(card, canvas) {
+    let nodesNum = 5;
+
+    let FREQ_MIN = 10;
+    let FREQ_MAX = Math.round(audioCtx.sampleRate * 0.5);
+
+    let MAG_MIN = -100;
+    let MAG_MAX = 100;
+
+    this.eqNodes = [];
+    this.eqParams = [];
+
+    this.input = audioCtx.createGain();
+    this.output = audioCtx.createGain();
+    let previousNode = this.input;
+    let nextNode = this.output;
+
+    const knobs = Array.from(card.getElementsByClassName("knob"));
+    const freqKnobs = knobs.filter((knob) => knob.className.includes("frequency"));
+    const gainKnobs = knobs.filter((knob) => knob.className.includes("gain"));
+    const qKnobs = knobs.filter((knob) => knob.className.includes("-q"));
+
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const canvasCtx = canvas.getContext("2d");
+
+    for (let i = 0; i < nodesNum; i++) {
+        let eqNode = audioCtx.createBiquadFilter();
+
+        if (i === 0) {
+            eqNode.type = "lowshelf";
+        } else if (i === nodesNum - 1) {
+            eqNode.type = "highshelf";
+        } else {
+            eqNode.type = "peaking";
+        }
+
+        eqNode.frequency.value = freqKnobs[i].dataset.value;
+        eqNode.gain.value = gainKnobs[i].dataset.value;
+        eqNode.Q.value = qKnobs[i].dataset.value;
+
+        previousNode.connect(eqNode);
+
+        this.eqNodes.push(eqNode);
+
+        previousNode = eqNode;
+    }
+
+    previousNode.connect(this.output);
+
+    this.updateEqGraphic = function () {
+        for (let i = 0; i < this.eqNodes.length; i++) {
+            this.eqNodes[i].frequency.value = freqKnobs[i].dataset.value;
+            this.eqNodes[i].gain.value = gainKnobs[i].dataset.value;
+            this.eqNodes[i].Q.value = qKnobs[i].dataset.value;
+        }
+
+        if (this.eqFreqs == null) {
+            let freqsNum = 100;
+            let freqStep = (FREQ_MAX - FREQ_MIN) / (freqsNum - 1);
+    
+            this.eqFreqs = new Float32Array(freqsNum);
+    
+            for (let i = 0; i < freqsNum; i++) {
+                this.eqFreqs[i] = Math.round(FREQ_MIN + (i * freqStep));
+            }
+        }
+    
+        let stepX = WIDTH / (FREQ_MAX - FREQ_MIN);
+        let stepY = HEIGHT / (MAG_MAX - MAG_MIN);
+    
+        canvasCtx.fillStyle = "#000000";
+        canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+
+        let eqMag = getEqResponse(this.eqFreqs, this.eqNodes);
+        let firstPart = true;
+    
+        canvasCtx.beginPath();
+    
+        for (let i = 0; i < this.eqFreqs.length; i++) {
+            let x = Math.round((this.eqFreqs[i] - FREQ_MIN) * stepX);
+            let y = HEIGHT - Math.round((eqMag[i] - MAG_MIN) * stepY);
+            
+            if (firstPart) {
+                firstPart = false;
+                canvasCtx.moveTo(x, y);
+            } else {
+                canvasCtx.lineTo(x, y);
+            }
+        }
+    
+        canvasCtx.strokeStyle = "#ff0000";
+        canvasCtx.stroke();
+    }
+
+    for (knob of knobs) {
+        knob.addEventListener("valuechanged", () => {
+            this.updateEqGraphic();
+        });
+    }
+
+    this.updateEqGraphic();
+}
+
+function getEqResponse(freqs, eqNodes) {
+    let magCombined = new Float32Array(freqs.length);
+    
+    let magCurr = new Float32Array(freqs.length);
+    let phaseCurr = new Float32Array(freqs.length);
+
+    for (let i = 0; i < eqNodes.length; i++) {
+        eqNodes[i].getFrequencyResponse(freqs, magCurr, phaseCurr);
+
+        for (let j = 0; j < freqs.length; j++) {
+            let magDB = 20 * Math.log10(magCurr[j]);
+            magCombined[j] += magDB;
+        }
+    } 
+
+    return magCombined;
+}
+
 function createEmptyCard() {
     if (document.querySelector("#empty-card") === null) {
-        let cardOptions = ["Compressor", "Delay", "Reverb"];
+        let cardOptions = ["Compressor", "Delay", "Reverb", "Equalizer"];
         let newCard = document.createElement("div");
         newCard.classList.add("card");
         newCard.classList.add("effect");
@@ -570,10 +750,10 @@ function createEffectCard(type) {
     topBar.appendChild(muteButton);
     topBar.appendChild(closeButton);
 
-    let visualizer = document.querySelector(".visualizer").cloneNode();
+    let visualizerContainer = document.querySelector(".visualizer-container").cloneNode(true);
 
     top.appendChild(topBar);
-    top.appendChild(visualizer);
+    top.appendChild(visualizerContainer);
     emptyCard.appendChild(top);
 
     closeButton.addEventListener("click", () => emptyCard.remove());
@@ -591,110 +771,174 @@ function createEffectCard(type) {
     });
 
     if (type === "Compressor") {
-            let knobs = document.createElement("div");
-            knobs.classList.add("knobs");
+        let knobs = document.createElement("div");
+        knobs.classList.add("knobs");
 
-            knobs.innerText = type;
+        knobs.innerText = type;
 
-            let knobRow1 = document.createElement("div");
-            knobRow1.classList.add("knob-row");
-            let knobRow2 = document.createElement("div");
-            knobRow2.classList.add("knob-row");
+        let knobRow1 = document.createElement("div");
+        knobRow1.classList.add("knob-row");
+        let knobRow2 = document.createElement("div");
+        knobRow2.classList.add("knob-row");
 
-            let volume = new createKnob("comp-volume", 1, 0, 1, " dB");
-            let threshhold = new createKnob("comp-threshold", 0, -100, 0, " dB");
-            let knee = new createKnob("comp-knee", 0, 0, 40, " dB");
-            let ratio = new createKnob("comp-ratio", 1, 1, 20);
-            let attack = new createKnob("comp-attack", 0, 0, 1, " s");
-            let release = new createKnob("comp-release", 0, 0, 1, " s");
-            
-            knobRow1.appendChild(volume.container);
-            knobRow1.appendChild(threshhold.container);
-            knobRow1.appendChild(knee.container);
-            knobRow1.appendChild(ratio.container);
+        let volume = new createKnob("comp-volume", 1, 0, 1, " dB");
+        let threshhold = new createKnob("comp-threshold", 0, -100, 0, " dB");
+        let knee = new createKnob("comp-knee", 0, 0, 40, " dB");
+        let ratio = new createKnob("comp-ratio", 1, 1, 20);
+        let attack = new createKnob("comp-attack", 0, 0, 1, " s");
+        let release = new createKnob("comp-release", 0, 0, 1, " s");
+        
+        knobRow1.appendChild(volume.container);
+        knobRow1.appendChild(threshhold.container);
+        knobRow1.appendChild(knee.container);
+        knobRow1.appendChild(ratio.container);
 
-            knobRow2.appendChild(attack.container);
-            knobRow2.appendChild(release.container);
+        knobRow2.appendChild(attack.container);
+        knobRow2.appendChild(release.container);
 
-            knobs.appendChild(knobRow1);
-            knobs.appendChild(knobRow2);
+        knobs.appendChild(knobRow1);
+        knobs.appendChild(knobRow2);
 
-            emptyCard.appendChild(knobs);
+        emptyCard.appendChild(knobs);
 
-            updateKnobs(emptyCard.getElementsByClassName("knob"));
-            updateValueInputs();
+        updateKnobs(emptyCard.getElementsByClassName("knob"));
+        updateValueInputs();
     } else if (type === "Delay") {
-            let knobs = document.createElement("div");
-            knobs.classList.add("knobs");
+        let knobs = document.createElement("div");
+        knobs.classList.add("knobs");
 
-            knobs.innerText = type;
+        knobs.innerText = type;
 
-            let knobRow1 = document.createElement("div");
-            knobRow1.classList.add("knob-row");
-            let knobRow2 = document.createElement("div");
-            knobRow2.classList.add("knob-row");
+        let knobRow1 = document.createElement("div");
+        knobRow1.classList.add("knob-row");
+        let knobRow2 = document.createElement("div");
+        knobRow2.classList.add("knob-row");
 
-            let feedback = new createKnob("delay-feedback", 0, 0, 1, "%");
-            let delayTime = new createKnob("delay-time", 0, 0, 1, "s");
-            let bandpassFreq = new createKnob("delay-frequency", 10000, 30, 20000, "Hz") ;
-            let bandpassQ = new createKnob("delay-q", 0.0001, 0.0001, 1);
-            
-            knobRow1.appendChild(feedback.container);
-            knobRow1.appendChild(delayTime.container);
+        let feedback = new createKnob("delay-feedback", 0, 0, 1, "%");
+        let delayTime = new createKnob("delay-time", 0, 0, 1, "s");
+        let bandpassFreq = new createKnob("delay-frequency", 10000, 30, 24000, "Hz") ;
+        let bandpassQ = new createKnob("delay-q", 0.0001, 0.0001, 1);
+        
+        knobRow1.appendChild(feedback.container);
+        knobRow1.appendChild(delayTime.container);
 
-            knobRow2.appendChild(bandpassFreq.container);
-            knobRow2.appendChild(bandpassQ.container);
+        knobRow2.appendChild(bandpassFreq.container);
+        knobRow2.appendChild(bandpassQ.container);
 
-            knobs.appendChild(knobRow1);
-            knobs.appendChild(knobRow2);
+        knobs.appendChild(knobRow1);
+        knobs.appendChild(knobRow2);
 
-            emptyCard.appendChild(knobs);
+        emptyCard.appendChild(knobs);
 
-            updateKnobs(emptyCard.getElementsByClassName("knob"));
-            updateValueInputs();
+        updateKnobs(emptyCard.getElementsByClassName("knob"));
+        updateValueInputs();
     } else if (type === "Reverb") {
-            let knobs = document.createElement("div");
-            knobs.classList.add("knobs");
+        let knobs = document.createElement("div");
+        knobs.classList.add("knobs");
 
-            knobs.innerText = type;
+        knobs.innerText = type;
 
-            let knobRow1 = document.createElement("div");
-            knobRow1.classList.add("knob-row");
-            let knobRow2 = document.createElement("div");
-            knobRow2.classList.add("knob-row");
-            let knobRow3 = document.createElement("div");
-            knobRow3.classList.add("knob-row");
+        let knobRow1 = document.createElement("div");
+        knobRow1.classList.add("knob-row");
+        let knobRow2 = document.createElement("div");
+        knobRow2.classList.add("knob-row");
+        let knobRow3 = document.createElement("div");
+        knobRow3.classList.add("knob-row");
 
-            let wet = new createKnob("reverb-wet", 0, 0, 1, "%");
-            let decayTime = new createKnob("reverb-decay", 1, 0, 3, "s");
-            let preDelay = new createKnob("reverb-predelay", 0, 0, 0.5, "s");
-            let lowpassFreq = new createKnob("reverb-lowpass", 20000, 30, 20000, "Hz");
-            let highpassFreq = new createKnob("reverb-highpass", 0, 0, 20000, "Hz");
-            let dampeningFreq = new createKnob("reverb-dampening", 3000, 0, 20000, "Hz");
-            let roomSize = new createKnob("reverb-room-size", 0.5, 0.2, 0.8);
-            let reflectionVolume = new createKnob("reverb-reflection-volume",  1, 0, 2, "dB");
-            let diffuseVolume = new createKnob("reverb-diffuse-volume", 1, 0, 2, "dB");
-            
-            knobRow1.appendChild(wet.container);
-            knobRow1.appendChild(decayTime.container);
-            knobRow1.appendChild(preDelay.container);
+        let wet = new createKnob("reverb-wet", 0, 0, 1, "%");
+        let decayTime = new createKnob("reverb-decay", 1, 0, 3, "s");
+        let preDelay = new createKnob("reverb-predelay", 0, 0, 0.25, "s");
+        let lowpassFreq = new createKnob("reverb-lowpass", 24000, 30, 24000, "Hz");
+        let highpassFreq = new createKnob("reverb-highpass", 0, 0, 24000, "Hz");
+        let dampeningFreq = new createKnob("reverb-dampening", 3000, 0, 24000, "Hz");
+        let roomSize = new createKnob("reverb-room-size", 0.5, 0.2, 0.8);
+        let reflectionVolume = new createKnob("reverb-reflection-volume",  1, 0, 2, "dB");
+        let diffuseVolume = new createKnob("reverb-diffuse-volume", 1, 0, 2, "dB");
+        
+        knobRow1.appendChild(wet.container);
+        knobRow1.appendChild(decayTime.container);
+        knobRow1.appendChild(preDelay.container);
 
-            knobRow2.appendChild(lowpassFreq.container);
-            knobRow2.appendChild(highpassFreq.container);
-            knobRow2.appendChild(dampeningFreq.container);
-            knobRow2.appendChild(roomSize.container);
+        knobRow2.appendChild(lowpassFreq.container);
+        knobRow2.appendChild(highpassFreq.container);
+        knobRow2.appendChild(dampeningFreq.container);
+        knobRow2.appendChild(roomSize.container);
 
-            knobRow3.appendChild(reflectionVolume.container);
-            knobRow3.appendChild(diffuseVolume.container);
+        knobRow3.appendChild(reflectionVolume.container);
+        knobRow3.appendChild(diffuseVolume.container);
 
-            knobs.appendChild(knobRow1);
-            knobs.appendChild(knobRow2);
-            knobs.appendChild(knobRow3);
+        knobs.appendChild(knobRow1);
+        knobs.appendChild(knobRow2);
+        knobs.appendChild(knobRow3);
 
-            emptyCard.appendChild(knobs);
+        emptyCard.appendChild(knobs);
 
-            updateKnobs(emptyCard.getElementsByClassName("knob"));
-            updateValueInputs();
+        updateKnobs(emptyCard.getElementsByClassName("knob"));
+        updateValueInputs();
+    } else if (type === "Equalizer") {
+        let visualizerOverlay = document.querySelector(".visualizer").cloneNode();
+        visualizerOverlay.classList.remove("visualizer");
+        visualizerOverlay.classList.add("visualizer-overlay");
+
+        visualizerContainer.appendChild(visualizerOverlay);
+
+        let knobs = document.createElement("div");
+        knobs.classList.add("knobs");
+
+        knobs.innerText = type;
+
+        let knobRow1 = document.createElement("div");
+        knobRow1.classList.add("knob-row");
+        let knobRow2 = document.createElement("div");
+        knobRow2.classList.add("knob-row");
+        let knobRow3 = document.createElement("div");
+        knobRow3.classList.add("knob-row");
+
+        let lowshelfFreq = new createKnob("lowshelf-frequency", 2400, 30, 24000, "Hz");
+        let peakFreq = new createKnob("peak-frequency", 7200, 30, 24000, "Hz");
+        let peakFreq2 = new createKnob("peak-frequency", 12000, 30, 24000, "Hz");
+        let peakFreq3 = new createKnob("peak-frequency", 16800, 30, 24000, "Hz");
+        let highshelfFreq = new createKnob("highshelf-frequency", 21600, 30, 24000, "Hz");
+
+        //Gain values are directly in Decibels.
+        let lowshelfGain = new createKnob("lowshelf-gain", 0, -20, 20, "dB");
+        let peakGain = new createKnob("peak-gain", 0, -20, 20, "dB");
+        let peakGain2 = new createKnob("peak-gain", 0, -20, 20, "dB");
+        let peakGain3 = new createKnob("peak-gain", 0, -20, 20, "dB");
+        let highshelfGain = new createKnob("highshelf-gain", 0, -20, 20, "dB");
+
+        let lowshelfQ = new createKnob("lowshelf-q", 1, 0.0001, 100);
+        let peakQ = new createKnob("peak-q", 1, 0.0001, 100);
+        let peakQ2 = new createKnob("peak-q", 1, 0.0001, 100);
+        let peakQ3 = new createKnob("lowshelf-q", 1, 0.0001, 100);
+        let highshelfQ = new createKnob("highshelf-q", 1, 0.0001, 100);
+        
+        knobRow1.appendChild(lowshelfFreq.container);
+        knobRow1.appendChild(peakFreq.container);
+        knobRow1.appendChild(peakFreq2.container);
+        knobRow1.appendChild(peakFreq3.container);
+        knobRow1.appendChild(highshelfFreq.container);
+
+        knobRow2.appendChild(lowshelfGain.container);
+        knobRow2.appendChild(peakGain.container);
+        knobRow2.appendChild(peakGain2.container);
+        knobRow2.appendChild(peakGain3.container);
+        knobRow2.appendChild(highshelfGain.container);
+
+        knobRow3.appendChild(lowshelfQ.container);
+        knobRow3.appendChild(peakQ.container);
+        knobRow3.appendChild(peakQ2.container);
+        knobRow3.appendChild(peakQ3.container);
+        knobRow3.appendChild(highshelfQ.container);
+
+        knobs.appendChild(knobRow1);
+        knobs.appendChild(knobRow2);
+        knobs.appendChild(knobRow3);
+
+        emptyCard.appendChild(knobs);
+
+        updateKnobs(emptyCard.getElementsByClassName("knob"));
+        updateValueInputs();
     }
 }
 
@@ -937,7 +1181,19 @@ function playAll(time) {
 
                     lastNode = reverb.output;
                     lastGain = reverb.output;
-                    createWaveform(lastNode, visualizer);
+                    createGraphicEQ(lastNode, visualizer);
+                } else if (card.className.includes("equalizer")) {
+                    const visualizer = card.querySelector(".visualizer");
+                    const visualizerOverlay = card.querySelector(".visualizer-overlay");
+
+                    const equalizer = new createParametricEQ(card, visualizerOverlay);
+
+                    lastNode.connect(equalizer.input);
+
+                    lastNode = equalizer.output;
+                    lastGain = equalizer.output;
+                    
+                    createBarVisualizer(lastNode, visualizer);
                 }
             }
             muteButton.addEventListener("click", () => {
@@ -955,6 +1211,12 @@ function playAll(time) {
             }
         }
     }
+
+    let volumeClamper = new createClamper(-0.3);
+
+    lastNode.connect(volumeClamper.input);
+
+    lastNode = volumeClamper.output;
 
     lastNode.connect(mediaStreamNode);
     lastNode.connect(audioCtx.destination); 
@@ -1007,7 +1269,7 @@ function updateValueInputs() {
             input.value = `${knobVal.toFixed(2)}${knob.dataset.unit}`;
         } else {
             if (knob.id.includes("volume") || knob.className.includes("volume")) {
-                knobVal = 20 * (Math.log(knobVal)/Math.LN10);
+                knobVal = 20 * Math.log10(knobVal);
             }
             input.value = `${knobVal.toFixed(2)} ${knob.dataset.unit}`;
         }
@@ -1093,12 +1355,13 @@ function handleInputChange(e) {
             e.target.value = `${newValue.toFixed(2)}${knobUnit}`
         } else {
             if (knob.id.includes("volume") || knob.className.includes("volume")) {
-                newValue = 20 * (Math.log(newValue)/Math.LN10);
+                newValue = 20 * Math.log10(newValue);
             }
             e.target.value = `${newValue.toFixed(2)} ${knobUnit}`
         }
     }
     updateKnobs(knobArray);
+    knob.dispatchEvent(knobValueChanged);
 }
 
 function handleSoundEnd() {

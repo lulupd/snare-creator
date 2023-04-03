@@ -31,7 +31,9 @@
                             </div>
                         </div>
                     </div>
-                    <canvas class="visualizer" width="420px" height="150px"></canvas>
+                    <div class="visualizer-container">
+                        <canvas class="visualizer" width="420px" height="150px"></canvas>
+                    </div>
                     <div class="button-container">
                         <button class="play" data-playing="false">Play</button>
                         <a href="" id="save-link" download="snare">
@@ -142,7 +144,7 @@
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="0 Hz"/>
-                                <div class="knob" id="noise-highpass" data-min="0" data-max="20000" data-value="0" data-angle="0" data-unit="Hz">
+                                <div class="knob" id="noise-highpass" data-min="0" data-max="24000" data-value="0" data-angle="0" data-unit="Hz">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">High Pass</div>
@@ -156,7 +158,7 @@
                             </div>
                             <div class="knob-container">
                                 <input class="knob-value" value="20000 Hz"/>
-                                <div class="knob" id="noise-lowpass" data-min="30" data-max="20000" data-value="20000" data-angle="0" data-unit="Hz">
+                                <div class="knob" id="noise-lowpass" data-min="30" data-max="24000" data-value="24000" data-angle="0" data-unit="Hz">
                                     <div class="knob-marker"></div>
                                 </div>
                                 <div class="label">Low Pass</div>

@@ -55,6 +55,11 @@ body {
 .reverb-card {
     background-color: #f3ae6e;
 }
+
+.equalizer-card {
+    background-color: #bdeeb6;
+}
+
 .plus-container {
     margin-left: 150px;
     margin-right: 300px;
@@ -174,6 +179,15 @@ select {
     margin-left: 5px;
     background-color: white;
     text-align: center;
+}
+
+.visualizer-container {
+    height: 150px;
+    width: 420px;
+}
+.visualizer,
+.visualizer-overlay {
+    position: absolute;
 }
 
 .visualizer {
