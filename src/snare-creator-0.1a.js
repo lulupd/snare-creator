@@ -38,6 +38,8 @@ const cornerOptions = document.getElementsByClassName("corner-option")
 
 const playButton = document.querySelector(".play");
 
+const saveButton = document.querySelector(".save");
+
 const toTopButton = document.querySelector(".to-top");
 
 let prevX = 0;
@@ -48,6 +50,8 @@ let initialPreset = {};
 let defaultPresets = {};
 
 let impulseResponse;
+
+let snareURL;
 
 const audioCtx = new AudioContext();
 
@@ -1454,7 +1458,7 @@ function handleSoundEnd() {
 }
 
 function handleCornerMenuClick(e) {
-    if (e.target.id.includes("save")) {
+    if (e.target.id.includes("save-preset")) {
         savePreset();
     } else if (e.target.id.includes("delete")) {
         deletePreset();
@@ -1464,6 +1468,8 @@ function handleCornerMenuClick(e) {
         initializePreset();
     } else if (e.target.id.includes("random")) {
         randomizePreset();
+    } else if (e.target.id.includes("json")) {
+        savePresetsToJSON();
     }
     updateKnobs(knobArray);
     updateValueInputs();
@@ -1648,6 +1654,23 @@ function randomizePreset() {
     updateKnobs(knobArray);
 }
 
+function savePresetsToJSON() {
+    if (localStorage.length > 0) {
+        let finalObject = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            let preset = JSON.parse(localStorage.getItem(key));
+            let name = preset["name"];
+            delete preset["name"];
+            finalObject[name] = preset;
+        }
+        
+        let finalString = JSON.stringify(finalObject);
+        let url = 'data:application/json;charset=utf-8,' + encodeURIComponent(finalString);
+        download("presets", url);
+    }
+}
+
 function makeUserPresetOptions() {
     for (let i = 0; i < localStorage.length; i++) {
         let key = localStorage.key(i);
@@ -1672,7 +1695,23 @@ function makeDefaultPresetOptions() {
     }
 }
 
+function download(name, url) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 playButton.addEventListener("click", handlePlayButton);
+
+saveButton.addEventListener("click", () => {
+    console.log(snareURL);
+    if (snareURL !== undefined) {
+        download("snare", snareURL);
+    }
+})
 
 mediaRecorder.ondataavailable = (e) => {
     saveChunks = [];
@@ -1681,7 +1720,7 @@ mediaRecorder.ondataavailable = (e) => {
 
 mediaRecorder.onstop = (e) => {
     const blob = new Blob(saveChunks, {type: "audio/wav; codec=opus"});
-    document.querySelector("#save-link").setAttribute("href", URL.createObjectURL(blob))
+    snareURL = URL.createObjectURL(blob);
 };
 
 for (let i = 0; i < knobArray.length; i++) {
