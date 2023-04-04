@@ -81,9 +81,16 @@ function turnKnob(e, knob) {
     const w = knob.clientWidth / 2;
     const h = knob.clientHeight / 2;
 
-    //Mouse coordinates. 
-    const x = e.clientX - knob.offsetLeft;
-    const y = e.clientY - knob.offsetTop;
+    let x, y;
+
+    if (e.changedTouches === undefined) {
+        x = e.clientX - knob.offsetLeft;
+        y = e.clientY - knob.offsetTop;
+    } else {
+        const touches = e.changedTouches;
+        x = touches[0].clientX - knob.offsetLeft;
+        y = touches[0].clientY - knob.offsetTop;
+    }
 
     const deltaX = w - x;
     const deltaY = h - y;
@@ -121,10 +128,16 @@ function turnKnob(e, knob) {
 }
 
 function slideTurnKnob(e, knob) {
+    let x, y;
 
-    //Mouse coordinates. 
-    const x = e.clientX - knob.offsetLeft;
-    const y = e.clientY - knob.offsetTop;
+    if (e.changedTouches === undefined) {
+        x = e.clientX - knob.offsetLeft;
+        y = e.clientY - knob.offsetTop;
+    } else {
+        const touches = e.changedTouches;
+        x = touches[0].clientX - knob.offsetLeft;
+        y = touches[0].clientY - knob.offsetTop;
+    }
 
     let deg = +knob.dataset.angle;
     
@@ -189,9 +202,13 @@ function startRotation(knob) {
     let rotateKnob = (e) => {rotate(e, knob)};
     
     window.addEventListener("mousemove", rotateKnob);
-    
+    window.addEventListener("touchmove", rotateKnob);
+
     window.addEventListener("mouseup", () => {
         window.removeEventListener("mousemove", rotateKnob);
+    });
+    window.addEventListener("touchend", () => {
+        window.removeEventListener("touchmove", rotateKnob);
     });
 }
 
@@ -199,9 +216,13 @@ function startSlideRotation(knob) {
     let slideKnob = (e) => {slide(e, knob)};
 
     window.addEventListener("mousemove", slideKnob);
+    window.addEventListener("touchmove", slideKnob);
     
     window.addEventListener("mouseup", () => {
         window.removeEventListener("mousemove", slideKnob);
+    });
+    window.addEventListener("touchend", () => {
+        window.removeEventListener("touchmove", slideKnob);
     });
 }
 
@@ -1622,12 +1643,20 @@ mediaRecorder.onstop = (e) => {
 
 for (let i = 0; i < knobArray.length; i++) {
     knobArray[i].addEventListener("mousedown", () => {startSlideRotation(knobArray[i])});
+    knobArray[i].addEventListener("touchstart", () => {startSlideRotation(knobArray[i])});
     knobArray[i].addEventListener("dblclick", initializeKnob);
+}
+
+for (let i = 0; i < knobArray.length; i++) {
+    let knobId = knobArray[i].id;
+    let knobVal = knobArray[i].dataset.value;
+    initialPreset[knobId] = knobVal;
 }
 
 for (let i = 0; i < knobMarkers.length; i++) {
     const knob = knobMarkers[i].parentElement;
     knobMarkers[i].addEventListener("mousedown", () => {startRotation(knob)});
+    knobMarkers[i].addEventListener("touchstart", () => {startRotation(knob)});
 }
 
 for (let i = 0; i < valueInputs.length; i++) {
@@ -1641,12 +1670,6 @@ for (let i = 0; i < valueInputs.length; i++) {
 
 for (let i = 0; i < cornerOptions.length; i++) {
     cornerOptions[i].addEventListener("click", handleCornerMenuClick);
-}
-
-for (let i = 0; i < knobArray.length; i++) {
-    let knobId = knobArray[i].id;
-    let knobVal = knobArray[i].dataset.value;
-    initialPreset[knobId] = knobVal;
 }
 
 presetSelect.addEventListener("change", (e) => {

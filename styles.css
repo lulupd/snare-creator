@@ -5,6 +5,7 @@ html {
     overflow-y: auto;
     display: flex;
     scroll-behavior: auto;
+    background: linear-gradient(white, #c8cac9);
 }
 
 body {
@@ -15,8 +16,6 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(white, #c8cac9);
-    padding-top: calc(100vw - 100%);
 }
 
 .card-container {
@@ -196,7 +195,7 @@ select {
     background-color: black;
 }
 
-.card .knobs {
+.knobs {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -262,4 +261,82 @@ select {
     font-size: 80%;
     width: 75px;
     text-align: center;
+}
+
+@media (max-width: 700px) {
+    html {
+        align-items: center;
+        justify-content: center;
+    }
+
+    body {
+        flex-direction: column;
+    }
+
+    .card-container {
+        margin: 0px;
+        width: 100%;
+    }
+    
+    .card {
+        height: 90vh;
+        width: 90vw;
+    }
+
+    .plus-container {
+        margin: 0;
+        display: none;
+    }
+    
+    .top-bar {
+        width: 85vw;
+        margin: 12px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .visualizer-container,
+    .visualizer,
+    .visualizer-overlay,
+    .eq-canvas {
+        height: 10vh;
+        width: 85vw;
+    }
+
+    .corner-button {
+        margin-right: 0;
+        margin-left: 5vw;
+        width: 15px;
+        height: 15px;
+    }
+
+    .button-container {
+        width: 85vw;
+        flex: auto;
+        justify-content: space-between;
+        margin: 8px 0px;
+    }
+    
+    .button-container button {
+        height: 5vh;
+        width: calc(85vw / 2);
+        flex: 0 0 auto;
+    }
+
+    .knob-container {
+        height: fit-content;
+        width: 50px;
+        padding: 0;
+        margin: 0;
+    }
+
+    .knob {
+        width: 5vh;
+        height:  5vh;
+    }
+
+    .knob-row {
+        width: 90vw;
+        justify-content: center;
+    }
 }
