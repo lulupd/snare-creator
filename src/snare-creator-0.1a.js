@@ -215,6 +215,11 @@ function startRotation(knob) {
 function startSlideRotation(knob) {
     let slideKnob = (e) => {slide(e, knob)};
 
+    let slideKnobMobile = (e) => {
+        e.preventDefault();
+        slide(e, knob);
+    };
+
     window.addEventListener("mousemove", slideKnob);
     window.addEventListener("touchmove", slideKnob);
     
