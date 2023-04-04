@@ -215,19 +215,14 @@ function startRotation(knob) {
 function startSlideRotation(knob) {
     let slideKnob = (e) => {slide(e, knob)};
 
-    let slideKnobMobile = (e) => {
-        e.preventDefault();
-        slide(e, knob);
-    };
-
     window.addEventListener("mousemove", slideKnob);
-    window.addEventListener("touchmove", slideKnobMobile);
+    window.addEventListener("touchmove", slideKnob);
     
     window.addEventListener("mouseup", () => {
         window.removeEventListener("mousemove", slideKnob);
     });
     window.addEventListener("touchend", () => {
-        window.removeEventListener("touchmove", slideKnobMobile);
+        window.removeEventListener("touchmove", slideKnob);
     });
 }
 
