@@ -1707,7 +1707,6 @@ function download(name, url) {
 playButton.addEventListener("click", handlePlayButton);
 
 saveButton.addEventListener("click", () => {
-    console.log(snareURL);
     if (snareURL !== undefined) {
         download("snare", snareURL);
     }
