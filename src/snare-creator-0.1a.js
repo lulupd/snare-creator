@@ -38,6 +38,8 @@ const cornerOptions = document.getElementsByClassName("corner-option")
 
 const playButton = document.querySelector(".play");
 
+const toTopButton = document.querySelector(".to-top");
+
 let prevX = 0;
 let prevY = 0;
 
@@ -707,7 +709,7 @@ function getEqResponse(freqs, eqNodes) {
 }
 
 function createEmptyCard() {
-    if (document.querySelector("#empty-card") === null) {
+    if (document.querySelector(".empty-card") === null) {
         let cardOptions = ["Compressor", "Delay", "Reverb", "Equalizer"];
         let newCard = document.createElement("div");
         newCard.classList.add("card");
@@ -746,10 +748,20 @@ function createEmptyCard() {
             optionContainer.appendChild(option);
         }
         document.querySelector(".card-container").appendChild(newCard);
-        window.scrollBy({
-            left: 450,
-            behavior: "smooth"
-        });
+
+        let portraitMode = window.matchMedia("(max-width: 700px)  and (orientation: portrait)").matches;
+
+        if (portraitMode) {
+            newCard.scrollIntoView({
+                block: "center",
+                behavior: "smooth"
+            });
+        } else {
+            window.scrollBy({
+                left: 450,
+                behavior: "smooth"
+            });
+        }
     }
 }
 
@@ -1032,8 +1044,11 @@ function createKnob(name, value, min, max, unit = "") {
 
 
     knob.addEventListener("mousedown", () => {startSlideRotation(knob)});
+    knob.addEventListener("touchstart", () => {startSlideRotation(knob)});
     knob.addEventListener("dblclick", initializeKnob);
+
     knobMarker.addEventListener("mousedown", () => {startRotation(knob)});
+    knobMarker.addEventListener("touchstart", () => {startRotation(knob)});
 
     knobInput.addEventListener("change", handleInputChange);
     knobInput.addEventListener("keyup", (e) => {
@@ -1369,6 +1384,17 @@ function initializeKnob(e) {
     }
 }
 
+function isScrolledToView(element, visibleAt) {
+    let windowHeight = window.innerHeight;
+    let elementTop = element.getBoundingClientRect().top;    
+
+    if (elementTop < windowHeight - visibleAt) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 function handleInputChange(e) {
     let knob = e.target.nextElementSibling;
     let newValue = e.target.value;
@@ -1497,6 +1523,23 @@ function handleScrolling(container) {
         passive: false
     });
 
+}
+
+function handleMobileInstructions() {
+    let mobileInstructions = document.querySelector(".mobile-instructions")
+    let portraitMode = window.matchMedia("(max-width: 700px)  and (orientation: portrait)").matches;
+
+    if (portraitMode) {
+        if (isScrolledToView(mobileInstructions, 300)) {
+            mobileInstructions.classList.remove("faded-in");
+            mobileInstructions.classList.add("faded-out");
+        } else {
+            if (document.querySelector(".effect") === null && document.querySelector(".empty-card") === null) {
+                mobileInstructions.classList.remove("faded-out");
+                mobileInstructions.classList.add("faded-in");
+            }
+        }
+    }
 }
 
 function openCornerMenu() {
@@ -1687,6 +1730,20 @@ window.addEventListener("click", (e) => {
         cornerDropdown.classList.remove("show");
     }
 });
+
+window.addEventListener("scroll", handleMobileInstructions);
+
+window.addEventListener("scroll", () => {
+    if (window.scrollY >= window.innerHeight * 0.3) {
+        toTopButton.classList.remove("faded-out");
+        toTopButton.classList.add("faded-in");
+    } else {
+        toTopButton.classList.remove("faded-in");
+        toTopButton.classList.add("faded-out");
+    }
+})
+
+toTopButton.addEventListener("click", () => window.scrollTo(0,0));
 
 handleScrolling(htmlBase);
 updateKnobs(knobArray);

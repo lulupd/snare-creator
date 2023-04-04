@@ -3,7 +3,7 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
         <title>Snare Creator</title>
         <link rel="stylesheet" href="styles.css">
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +12,7 @@
         <script src="src/snare-creator-0.1a.js" defer></script>
     </head>
     <body draggable="false">
+        <div class="bg"></div>
         <div class="card-container">
             <div id="osc-card" class="card">
                 <div class="top">
@@ -198,8 +199,12 @@
                 </div>
             </div>
         </div>
+        <div class="mobile-instructions">Scroll down for effects</div>
         <div class="plus-container" onclick="createEmptyCard()">
             <img src="images/plus.svg" width="100" alt="A plus sign. Click to create a new Audio Processing Node in the chain.">
+        </div>
+        <div class="to-top">
+            <img src="images/up.svg" width="30" alt="An up arrow. Click to return to the top of the page.">
         </div>
     </body>
 </html>
