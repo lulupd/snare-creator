@@ -221,13 +221,13 @@ function startSlideRotation(knob) {
     };
 
     window.addEventListener("mousemove", slideKnob);
-    window.addEventListener("touchmove", slideKnob);
+    window.addEventListener("touchmove", slideKnobMobile);
     
     window.addEventListener("mouseup", () => {
         window.removeEventListener("mousemove", slideKnob);
     });
     window.addEventListener("touchend", () => {
-        window.removeEventListener("touchmove", slideKnob);
+        window.removeEventListener("touchmove", slideKnobMobile);
     });
 }
 
