@@ -333,7 +333,7 @@ select {
     }
 
     .card {
-        height: 90vh;
+        height: calc(90vh - 10px);
         width: 90vw;
     }
 
