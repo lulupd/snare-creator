@@ -41,11 +41,11 @@ body {
     transition: visibility 0s 1s, opacity 1s linear;
   }
 
-  .faded-in {
+.faded-in {
     visibility: visible;
     opacity: 1;
     transition: opacity 1s linear;
-  }
+}
 
 .card {
     --marker-color: #45433e;
@@ -285,7 +285,16 @@ select {
     text-align: center;
 }
 
-@media (max-width: 700px)  and (orientation: portrait){
+@media screen and (-webkit-min-device-pixel-ratio: 1.25) { 
+    body {
+        transform: scale(0.8);
+        transform-origin: top left;
+        width: 125%;
+        height: 125%;
+    }
+}
+
+@media (max-width: 700px) and (orientation: portrait), {
     html {
         overscroll-behavior: contain;
         background: none;
@@ -414,11 +423,3 @@ select {
     }
 }
 
-@media screen and (min-resolution: 120dpi) { 
-    body {
-        transform: scale(0.8);
-        transform-origin: top left;
-        width: 125%;
-        height: 125%;
-    }
-}
