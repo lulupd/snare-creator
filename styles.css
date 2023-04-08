@@ -23,7 +23,7 @@ body {
     justify-content: space-around;
     align-items: center;
     gap: 150px;
-    margin-left: 30rem;
+    margin-left: 650px;
 }
 
 .mobile-instructions {
@@ -50,8 +50,8 @@ body {
 .card {
     --marker-color: #45433e;
     box-shadow: 0px 0px 25px;
-    width: 30rem;
-    height: 50rem;
+    width: 60vh;
+    height: 90vh;
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
@@ -81,10 +81,10 @@ body {
 }
 
 .plus-container {
-    margin-left: 7.5rem;
-    margin-right: 15rem;
-    width: 5rem;
-    height: 5rem;
+    margin-left: 150px;
+    margin-right: 300px;
+    width: 100px;
+    height: 100px;
     padding: 20px;
     border-style: solid;
     border-radius: 25%;
@@ -102,7 +102,7 @@ body {
 
 .option-container p {
     text-align: center;
-    width: 10rem;
+    width: 100px;
     cursor: pointer;
     margin: 10px;
 }
@@ -115,7 +115,7 @@ body {
 }
 
 .top-bar {
-    width: 25rem;
+    width: 40vh;
     margin: 12px;
     display: flex;
     justify-content: center;
@@ -130,8 +130,8 @@ body {
 .close-button {
     height: 15px;
     width: 15px;
-    margin-right: -12rem;
-    margin-left: 12rem;
+    margin-right: -245px;
+    margin-left: 245px;
     border-style: solid;
     border-color: #45433e;
     border-radius: 25%;
@@ -139,14 +139,14 @@ body {
 }
 
 .preset-container {
-    width: 12.5rem;
+    width: 25vh;
     display: flex;
     align-items: center;
 }
 
 .corner-button {
-    margin-right: -7rem;
-    margin-left: 7rem;
+    margin-right: -150px;
+    margin-left: 150px;
     width: 15px;
     height: 15px;
     border-style: solid;
@@ -161,8 +161,8 @@ body {
 
 .corner-button::after {
     content: "";
-    width: 0.8rem;
-    height: 0.5rem;
+    width: 0.8em;
+    height: 0.5em;
     background-color: #45433e;
     position: absolute;
     clip-path: polygon(100% 0%, 0 0%, 50% 100%);
@@ -204,14 +204,14 @@ select {
 }
 
 .visualizer-container {
-    height: 8rem;
-    width: 25rem;
+    height: 12vh;
+    width: 50vh;
 }
 .visualizer,
 .visualizer-overlay,
 .eq-canvas {
-    width: 25rem;
-    height: 8rem;
+    height: 12vh;
+    width: 50vh;
     position: absolute;
 }
 
@@ -227,36 +227,36 @@ select {
 }
 
 .effect .knobs {
-    margin-top: 5.1rem;
+    margin-top: 74px;
 }
 
 .knob-row {
     display: flex;
-    width: 25rem;
+    width: 50vh;
     text-align: center;
     justify-content: space-evenly;
 }
 
 .button-container {
     display: flex;
-    width: 25rem;
+    width: 50vh;
     flex: auto;
     justify-content: space-between;
-    margin: 1rem 0px;
+    margin: 12px 0px;
 }
 
 .button-container button {
-    height: 2rem;
-    width: 12.5rem;
+    height: 4vh;
+    width: 25vh;
     flex: 0 0 auto;
 }
 
 .knob-container {
     display: flex;
     flex-direction: column;
-    width: 4rem;
-    height: 6rem;
-    margin: 0.2rem 1rem;
+    width: 10vh;
+    height: 11vh;
+    margin: 0px 10px;
     align-items: center;
     text-align: center;
     font-size: small;
@@ -264,8 +264,8 @@ select {
 }
 
 .knob {
-    width: 3rem;
-    height: 3rem;
+    width: 5vh;
+    height: 5vh;
     border-radius: 50px;
     border-style: solid;
     border-color: black;
@@ -283,7 +283,7 @@ select {
 
 .knob-value {
     font-size: 80%;
-    width: 4rem;
+    width: 75px;
     text-align: center;
 }
 
@@ -295,6 +295,33 @@ select {
         height: 125%;
     }
 } */
+
+@media (max-height: 670px) {
+    .top-bar label {
+        font-size: 3vh;
+    }
+
+    .knobs {
+        font-size: 3vh;
+    }
+
+    .knob-container {
+        font-size: 1.5vh;
+        height: 10vh;
+    }
+
+    .knob {
+        width: 4vh;
+        height: 4vh;
+    }
+
+    .knob-value {
+        width: 8vh;
+        height: 1vh;
+        text-align: center;
+    }
+}
+
 
 @media (max-width: 700px) and (orientation: portrait), {
     html {
