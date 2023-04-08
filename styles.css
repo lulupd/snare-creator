@@ -272,6 +272,7 @@ select {
     border-style: solid;
     border-radius: 10px;
     border-width: 0.3vh;
+    border-color: #45433e;
     font-family: "Sora", sans-serif;
 }
 
