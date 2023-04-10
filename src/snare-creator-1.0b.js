@@ -45,6 +45,8 @@ const toTopButton = document.querySelector(".to-top");
 let prevX = 0;
 let prevY = 0;
 
+let tapTimer = null;
+
 let initialPreset = {};
 
 let defaultPresets = {};
@@ -1049,6 +1051,7 @@ function createKnob(name, value, min, max, unit = "") {
 
     knob.addEventListener("mousedown", () => {startSlideRotation(knob)});
     knob.addEventListener("touchstart", () => {startSlideRotation(knob)});
+    knob.addEventListener("touchstart", handleTouchStart1);
     knob.addEventListener("dblclick", initializeKnob);
 
     knobMarker.addEventListener("mousedown", () => {startRotation(knob)});
@@ -1548,6 +1551,18 @@ function handleMobileInstructions() {
     }
 }
 
+function handleTouchStart (e) {
+    if (tapTimer == null) {
+        tapTimer = setTimeout(() => {
+            tapTimer = null;
+        }, 500);
+    } else {
+        clearTimeout(tapTimer);
+        tapTimer = null;
+        initializeKnob(e);
+    }
+}
+
 function openCornerMenu() {
     cornerDropdown.classList.toggle("show");
 }
@@ -1725,6 +1740,7 @@ mediaRecorder.onstop = (e) => {
 for (let i = 0; i < knobArray.length; i++) {
     knobArray[i].addEventListener("mousedown", () => {startSlideRotation(knobArray[i])});
     knobArray[i].addEventListener("touchstart", () => {startSlideRotation(knobArray[i])});
+    knobArray[i].addEventListener("touchstart", handleTouchStart);
     knobArray[i].addEventListener("dblclick", initializeKnob);
 }
 
