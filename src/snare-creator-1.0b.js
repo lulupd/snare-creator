@@ -1051,7 +1051,7 @@ function createKnob(name, value, min, max, unit = "") {
 
     knob.addEventListener("mousedown", () => {startSlideRotation(knob)});
     knob.addEventListener("touchstart", () => {startSlideRotation(knob)});
-    knob.addEventListener("touchstart", handleTouchStart1);
+    knob.addEventListener("touchstart", handleTouchStart);
     knob.addEventListener("dblclick", initializeKnob);
 
     knobMarker.addEventListener("mousedown", () => {startRotation(knob)});
