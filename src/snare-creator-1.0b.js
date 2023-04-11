@@ -1013,6 +1013,7 @@ function createKnob(name, value, min, max, unit = "") {
     let knobContainer = document.createElement("div");
     knobContainer.classList.add("knob-container");
 
+    let inputError = document.querySelector(".error").cloneNode();
     let knobInput = document.querySelector(".knob-value").cloneNode();
     if (unit === "%" || unit === "") {
         knobInput.value = `${value}${unit}`;
@@ -1042,6 +1043,7 @@ function createKnob(name, value, min, max, unit = "") {
         }
     }
 
+    knobContainer.appendChild(inputError);
     knobContainer.appendChild(knobInput);
     knobContainer.appendChild(knob);
     knobContainer.appendChild(knobLabel);
@@ -1406,18 +1408,16 @@ function handleInputChange(e) {
     let knob = e.target.nextElementSibling;
     let newValue = e.target.value;
     
-    if (newValue.endsWith("Hz")) {
+    if (newValue.endsWith("Hz") || newValue.endsWith("dB")) {
         newValue = newValue.slice(0, -2);
         newValue.trimEnd();
     } else if (newValue.endsWith("s") || newValue.endsWith("%")) {
         newValue = newValue.slice(0, -1);
         newValue.trimEnd();
-    } else if (newValue.endsWith("dB")) {
-        newValue = newValue.slice(0, -2);
-        newValue.trimEnd();
     }
     
     newValue = +newValue;
+    let knobUnit = knob.dataset.unit;
 
     if (!isNaN(newValue) && !isNaN(parseInt(newValue))) {
         if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
@@ -1434,7 +1434,6 @@ function handleInputChange(e) {
 
     
         knob.dataset.value = newValue;
-        let knobUnit = knob.dataset.unit;
     
         if (knobUnit === "%" || knobUnit === "") {
             if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
@@ -1447,9 +1446,40 @@ function handleInputChange(e) {
             }
             e.target.value = `${newValue.toFixed(2)} ${knobUnit}`
         }
+    } else {
+        let knobVal = +knob.dataset.value;
+
+        if (knobUnit === "%" || knobUnit === "") {
+            if (knob.id.includes("sustain") || knob.className.includes("feedback") || knob.className.includes("wet")) {
+                knobVal = knobVal * 100;
+            }
+            e.target.value = `${knobVal.toFixed(2)}${knobUnit}`
+        } else {
+            if (knob.id.includes("volume") || knob.className.includes("volume")) {
+                knobVal = 20 * Math.log10(knobVal);
+            }
+            e.target.value = `${knobVal.toFixed(2)} ${knobUnit}`
+        }
+        handleInvalidInput(e);
     }
     updateKnobs(knobArray);
     knob.dispatchEvent(knobValueChanged);
+}
+
+function handleInvalidInput(e) {
+    const error = e.target.previousElementSibling;
+
+    if (!error.className.includes("faded-in")) {
+        error.innerText = "Please enter a number, optionally followed by the appropriate unit.";
+        error.classList.add("faded-in");
+        error.classList.remove("faded-out");
+        e.target.style.borderColor = "red";
+        let timer = setTimeout(() => {
+            error.classList.add("faded-out");
+            error.classList.remove("faded-in");
+            e.target.style.borderColor = "";
+        }, 5000)
+    }
 }
 
 function handleSoundEnd() {

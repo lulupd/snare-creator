@@ -34,18 +34,6 @@ body {
     display: none;
     visibility: hidden;
   }
-  
-.faded-out {
-    visibility: hidden;
-    opacity: 0;
-    transition: visibility 0s 1s, opacity 1s linear;
-  }
-
-.faded-in {
-    visibility: visible;
-    opacity: 1;
-    transition: opacity 1s linear;
-}
 
 .card {
     --marker-color: #45433e;
@@ -206,10 +194,6 @@ body {
     background-color: #6cc7a3;
 }
 
-.show {
-    display: block;
-}
-
 select {
     width: 100%;
     height: 2vh;
@@ -287,6 +271,7 @@ select {
 
 .knob-container {
     display: flex;
+    position: relative;
     flex-direction: column;
     width: 10vh;
     height: 11vh;
@@ -320,6 +305,34 @@ select {
     font-size: 80%;
     width: 75px;
     text-align: center;
+}
+
+.error {
+    opacity: 0;
+    box-sizing: border-box;
+    padding: 5%;
+    position: absolute;
+    bottom: 110%;
+    background-color: white;
+    border-radius: 10px;
+    width: 110%;
+    z-index: 1;
+}
+
+.show {
+    display: block;
+}
+
+.faded-out {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s 1s, opacity 1s linear;
+  }
+
+.faded-in {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 1s linear;
 }
 
 @media (max-height: 670px) {
